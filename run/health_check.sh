@@ -3,6 +3,6 @@
 chmod +x run/*.sh
 
 mkdir -p bin
-javac -d bin tolerancia/HealthChecker.java
+javac -cp "lib/*" -d  bin tolerancia/HealthChecker.java
 
 java -cp bin tolerancia.HealthChecker

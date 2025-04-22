@@ -3,6 +3,6 @@
 chmod +x run/*.sh
 
 mkdir -p bin
-javac -d bin servidor/*.java modelo/*.java
+javac -cp "lib/*" -d  bin servidor/*.java modelo/*.java
 
 java -cp bin servidor.Servidor

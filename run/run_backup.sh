@@ -3,6 +3,6 @@
 chmod +x run/*.sh
 
 mkdir -p bin
-javac -d bin tolerancia/ServidorReplica.java modelo/*.java servidor/*.java
+javac -cp "lib/*" -d  bin tolerancia/ServidorReplica.java modelo/*.java servidor/*.java
 
 java -cp bin tolerancia.ServidorReplica

@@ -1,0 +1,13 @@
+modelo/Aula.class
+servidor/AsignadorAulas.class
+modelo/Solicitud.class
+facultades/FacultadProxy.class
+facultades/Facultad.class
+programas/Programa2.class
+servidor/Persistencia.class
+tolerancia/ServidorReplica.class
+servidor/Servidor.class
+servidor/ManejadorSolicitudes.class
+programas/Programa1.class
+modelo/Constantes.class
+tolerancia/HealthChecker.class

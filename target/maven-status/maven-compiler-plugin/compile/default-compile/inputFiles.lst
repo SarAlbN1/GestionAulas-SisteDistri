@@ -1,0 +1,13 @@
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/facultades/Facultad.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/facultades/FacultadProxy.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Aula.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Constantes.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Solicitud.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/programas/Programa1.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/programas/Programa2.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/AsignadorAulas.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/ManejadorSolicitudes.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/Persistencia.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/Servidor.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/tolerancia/HealthChecker.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/tolerancia/ServidorReplica.java

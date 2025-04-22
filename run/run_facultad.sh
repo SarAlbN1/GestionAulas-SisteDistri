@@ -5,6 +5,6 @@
 chmod +x run/*.sh
 
 mkdir -p bin
-javac -d bin facultades/*.java modelo/*.java
+javac -cp "lib/*" -d  bin facultades/*.java modelo/*.java
 
 java -cp bin facultades.Facultad "$1" "$2"
