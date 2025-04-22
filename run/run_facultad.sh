@@ -2,9 +2,24 @@
 # Ejecuta el proceso de Facultad
 # $1 = nombreFacultad
 # $2 = IP_Servidor
-chmod +x run/*.sh
+
+if [ "$#" -ne 2 ]; then
+  echo "Uso: $0 <nombreFacultad> <IP_Servidor>"
+  exit 1
+fi
+
+FACULTAD_DIR="src/facultades"
+MODELO_DIR="src/modelo"
+
+if [ ! -d "$FACULTAD_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
+  echo "Error: No se encuentran los directorios src/facultades o src/modelo"
+  exit 1
+fi
 
 mkdir -p bin
-javac -cp "lib/*" -d  bin facultades/*.java modelo/*.java
 
-java -cp bin facultades.Facultad "$1" "$2"
+echo "Compilando clases..."
+javac -cp "lib/*" -d bin "$FACULTAD_DIR"/*.java "$MODELO_DIR"/*.java
+
+echo "Ejecutando facultad..."
+java -cp "bin:lib/*" facultades.Facultad "$1" "tcp://$2:5555"

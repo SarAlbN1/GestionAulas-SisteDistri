@@ -1,8 +1,18 @@
 #!/bin/bash
 # Ejecuta el servidor central
-chmod +x run/*.sh
+
+SERVIDOR_DIR="src/servidor"
+MODELO_DIR="src/modelo"
+
+if [ ! -d "$SERVIDOR_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
+  echo "Error: No se encuentran los directorios src/servidor o src/modelo"
+  exit 1
+fi
 
 mkdir -p bin
-javac -cp "lib/*" -d  bin servidor/*.java modelo/*.java
 
-java -cp bin servidor.Servidor
+echo "Compilando servidor..."
+javac -cp "lib/*" -d bin "$SERVIDOR_DIR"/*.java "$MODELO_DIR"/*.java
+
+echo "Ejecutando servidor..."
+java -cp "bin:lib/*" servidor.Servidor tcp://0.0.0.0:5555
