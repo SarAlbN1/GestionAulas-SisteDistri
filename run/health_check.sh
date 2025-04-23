@@ -1,8 +1,16 @@
-#!/bin/bash
-# Ejecuta el health checker que supervisa al servidor principal
-chmod +x run/*.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-mkdir -p bin
-javac -cp "lib/*" -d  bin tolerancia/HealthChecker.java
+# ./health_check.sh <ipServidor> [puerto]
+IP="${1:-localhost}"
+PUERTO="${2:-5555}"
 
-java -cp bin tolerancia.HealthChecker
+cd "$(dirname "$0")/.."
+
+echo "[health_check] Compilando proyecto..."
+mvn compile
+
+echo "[health_check] Iniciando HealthChecker contra $IP:$PUERTO..."
+mvn exec:java \
+  -Dexec.mainClass="tolerancia.HealthChecker" \
+  -Dexec.args="$IP $PUERTO"

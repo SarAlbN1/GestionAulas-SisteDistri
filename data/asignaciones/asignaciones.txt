@@ -1,0 +1,1 @@
+2025-04-22T22:35:30.624372 - {"programa":"IngSistemas","facultad":"FACU01","semestre":1,"salones":3,"laboratorios":2}

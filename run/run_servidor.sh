@@ -1,18 +1,19 @@
-#!/bin/bash
-# Ejecuta el servidor central
+#!/usr/bin/env bash
+set -euo pipefail
 
-SERVIDOR_DIR="src/servidor"
-MODELO_DIR="src/modelo"
-
-if [ ! -d "$SERVIDOR_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
-  echo "Error: No se encuentran los directorios src/servidor o src/modelo"
+# ./run_servidor.sh <sync|async>
+if [ $# -ne 1 ]; then
+  echo "Uso: $0 <sync|async>"
   exit 1
 fi
+MODE=$1
 
-mkdir -p bin
+cd "$(dirname "$0")/.."
 
-echo "Compilando servidor..."
-javac -cp "lib/*" -d bin "$SERVIDOR_DIR"/*.java "$MODELO_DIR"/*.java
+echo "[run_servidor] Compilando proyecto..."
+mvn clean compile
 
-echo "Ejecutando servidor..."
-java -cp "bin:lib/*" servidor.Servidor tcp://0.0.0.0:5555
+echo "[run_servidor][$MODE] Iniciando Servidor en modo $MODE..."
+mvn exec:java \
+  -Dexec.mainClass="servidor.Servidor" \
+  -Dexec.args="$MODE"

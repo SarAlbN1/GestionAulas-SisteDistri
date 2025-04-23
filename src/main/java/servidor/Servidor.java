@@ -5,62 +5,76 @@ import java.util.concurrent.Executors;
 
 import org.zeromq.ZMQ;
 
+import com.google.gson.Gson;
+
+import modelo.Solicitud;
+
 /**
  * Servidor Central – Gestión de Aulas
- * Recibe solicitudes de las facultades y las procesa concurrentemente
- * usando un pool de hilos.
- *
- * Autor:Sara Albarracin
- * Pontificia Universidad Javeriana – Sistemas Distribuidos
+ * Puede correr en modo síncrono (REQ/REP) o asíncrono (ROUTER/DEALER).
  */
 public class Servidor {
 
-    // Puerto en el que el servidor escucha peticiones REQ de las facultades
-    private static final int PUERTO = 5555;
-
-    // Tamaño máximo del pool de hilos para procesar solicitudes simultáneas
+    private static final int PUERTO    = 5555;
     private static final int MAX_HILOS = 10;
 
     public static void main(String[] args) {
-        System.out.println("[Servidor] Iniciando Servidor Central...");
+        if (args.length < 1) {
+            System.out.println("Uso: java Servidor <sync|async>");
+            return;
+        }
+        String mode = args[0];
 
-        // 1. Crear contexto ZeroMQ con un sólo hilo de I/O
+        // Contexto ZMQ
         ZMQ.Context context = ZMQ.context(1);
 
-        // 2. Crear socket REP para atender las solicitudes entrantes
-        ZMQ.Socket socket = context.socket(ZMQ.REP);
-        // 2.1. Asociar (bind) el socket a todas las interfaces en el PUERTO definido
-        socket.bind("tcp://*:" + PUERTO);
+        // Elegir socket REP vs ROUTER según modo
+        ZMQ.Socket socket = context.socket(
+            mode.equals("async") ? ZMQ.ROUTER : ZMQ.REP
+        );
+        socket.bind("tcp://0.0.0.0:" + PUERTO);
 
-        // 3. Crear un pool de hilos con tamaño fijo para manejar concurrencia
         ExecutorService pool = Executors.newFixedThreadPool(MAX_HILOS);
+        Persistencia p         = new Persistencia();
+        AsignadorAulas asign   = new AsignadorAulas();
+        Gson gson              = new Gson();
 
-        // 4. Instancias compartidas de lógica de persistencia y asignación
-        Persistencia persistencia = new Persistencia();
-        AsignadorAulas asignador   = new AsignadorAulas();
+        System.out.println("[Servidor][" + mode + "] escuchando en " + PUERTO);
 
-        // 5. Bucle principal: recibir y despachar solicitudes indefinidamente
-        while (!Thread.currentThread().isInterrupted()) {
-            System.out.println("[Servidor] Esperando solicitudes...");
+        while (true) {
+            byte[] clientId = null;
+            String json;
 
-            // 5.1. Bloquea hasta recibir un JSON con la solicitud de la facultad
-            String solicitudJson = socket.recvStr();
+            if (mode.equals("async")) {
+                // Recibir frames: [identity][empty][body]
+                clientId = socket.recv();
+                socket.recv(); 
+                json     = new String(socket.recv(), ZMQ.CHARSET);
+            } else {
+                json = socket.recvStr();
+            }
 
-            // 5.2. Construir un manejador de la solicitud, inyectando dependencias
-            ManejadorSolicitudes manejador = new ManejadorSolicitudes(
-                solicitudJson,
-                socket,          // socket REP para enviar la respuesta
-                asignador,       // lógica de asignación de aulas
-                persistencia     // lógica de registro en disco
-            );
+            final byte[] id = clientId;
+            final String  rq = json;
 
-            // 5.3. Enviar la tarea al pool para ejecución en un hilo disponible
-            pool.execute(manejador);
+            pool.execute(() -> {
+                // Deserializar y procesar
+                Solicitud solicitud = gson.fromJson(rq, Solicitud.class);
+                boolean ok = asign.asignarAulas(solicitud);
+                String respuesta = ok ? "Asignación exitosa" : "Sin aulas disponibles";
+
+                // Persistir evento
+                p.guardar(ok ? "asignaciones" : "error", rq);
+
+                // Enviar respuesta según modo
+                if (mode.equals("async")) {
+                    socket.send(id, ZMQ.SNDMORE);
+                    socket.send("", ZMQ.SNDMORE);
+                    socket.send(respuesta);
+                } else {
+                    socket.send(respuesta);
+                }
+            });
         }
-
-        // 6. Apagar ordenadamente el pool y liberar recursos de ZeroMQ
-        pool.shutdown();    // No acepta nuevas tareas y espera que terminen las activas
-        socket.close();     // Cierra el socket de red
-        context.term();     // Libera el contexto de ZeroMQ
     }
 }

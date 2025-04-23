@@ -1,25 +1,19 @@
-#!/bin/bash
-# Ejecuta el proceso de Facultad
-# $1 = nombreFacultad
-# $2 = IP_Servidor
+#!/usr/bin/env bash
+set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Uso: $0 <nombreFacultad> <IP_Servidor>"
+# ./run_facultad.sh <sync|async> <ipServidor>
+if [ $# -ne 2 ]; then
+  echo "Uso: $0 <sync|async> <ipServidor>"
   exit 1
 fi
+MODE=$1; IP=$2
 
-FACULTAD_DIR="src/facultades"
-MODELO_DIR="src/modelo"
+cd "$(dirname "$0")/.."
 
-if [ ! -d "$FACULTAD_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
-  echo "Error: No se encuentran los directorios src/facultades o src/modelo"
-  exit 1
-fi
+echo "[run_facultad] Compilando proyecto..."
+mvn compile
 
-mkdir -p bin
-
-echo "Compilando clases..."
-javac -cp "lib/*" -d bin "$FACULTAD_DIR"/*.java "$MODELO_DIR"/*.java
-
-echo "Ejecutando facultad..."
-java -cp "bin:lib/*" facultades.Facultad "$1" "tcp://$2:5555"
+echo "[run_facultad][$MODE] Iniciando Facultad en modo $MODE contra $IP:5555..."
+mvn exec:java \
+  -Dexec.mainClass="facultades.Facultad" \
+  -Dexec.args="$MODE $IP"

@@ -1,13 +1,21 @@
-#!/bin/bash
-# Ejecuta un programa académico con los argumentos:
-# $1 = nombrePrograma
-# $2 = semestre
-# $3 = salones
-# $4 = laboratorios
-# $5 = IP_Facultad
-chmod +x run/*.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-mkdir -p bin
-javac -cp "lib/*" -d bin programas/Programa1.java modelo/*.java
+# ./run_programa.sh <sync|async> <nombre> <codFac> <sem> <sal> <lab> <ipFacultad>
+if [ $# -ne 7 ]; then
+  echo "Uso: $0 <sync|async> <nombre> <codFac> <sem> <sal> <lab> <ipFacultad>"
+  exit 1
+fi
+MODE=$1; shift
 
-java -cp bin programas.Programa1 "$1" "$2" "$3" "$4" "$5"
+ARGS="$*"
+
+cd "$(dirname "$0")/.."
+
+echo "[run_programa] Compilando proyecto..."
+mvn compile
+
+echo "[run_programa][$MODE] Ejecutando Programa con args: $ARGS"
+mvn exec:java \
+  -Dexec.mainClass="programas.ProgramaAcademico" \
+  -Dexec.args="$MODE $ARGS"
