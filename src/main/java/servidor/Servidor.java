@@ -25,19 +25,19 @@ public class Servidor {
         }
         String mode = args[0];
 
-        // Contexto ZMQ
+        // Crear contexto ZeroMQ
         ZMQ.Context context = ZMQ.context(1);
 
-        // Elegir socket REP vs ROUTER según modo
+        // Seleccionar socket REP o ROUTER según modo
         ZMQ.Socket socket = context.socket(
             mode.equals("async") ? ZMQ.ROUTER : ZMQ.REP
         );
         socket.bind("tcp://0.0.0.0:" + PUERTO);
 
-        ExecutorService pool = Executors.newFixedThreadPool(MAX_HILOS);
-        Persistencia p         = new Persistencia();
-        AsignadorAulas asign   = new AsignadorAulas();
-        Gson gson              = new Gson();
+        ExecutorService pool         = Executors.newFixedThreadPool(MAX_HILOS);
+        Persistencia    persistencia = new Persistencia();
+        AsignadorAulas  asignador    = new AsignadorAulas();
+        Gson            gson         = new Gson();
 
         System.out.println("[Servidor][" + mode + "] escuchando en " + PUERTO);
 
@@ -46,30 +46,31 @@ public class Servidor {
             String json;
 
             if (mode.equals("async")) {
-                // Recibir frames: [identity][empty][body]
+                // En asíncrono recibimos identidad, empty frame y cuerpo
                 clientId = socket.recv();
-                socket.recv(); 
+                socket.recv();
                 json     = new String(socket.recv(), ZMQ.CHARSET);
             } else {
+                // En síncrono recibimos directamente la cadena
                 json = socket.recvStr();
             }
 
-            final byte[] id = clientId;
-            final String  rq = json;
+            final byte[]   id = clientId;
+            final String   rq = json;
 
             pool.execute(() -> {
-                // Deserializar y procesar
+                // Deserializar y procesar la solicitud
                 Solicitud solicitud = gson.fromJson(rq, Solicitud.class);
-                boolean ok = asign.asignarAulas(solicitud);
+                boolean ok = asignador.asignarAulas(solicitud);
                 String respuesta = ok ? "Asignación exitosa" : "Sin aulas disponibles";
 
-                // Persistir evento
-                p.guardar(ok ? "asignaciones" : "error", rq);
+                // Persistir el resultado
+                persistencia.guardar(ok ? "asignaciones" : "error", rq);
 
-                // Enviar respuesta según modo
+                // Responder según el modo
                 if (mode.equals("async")) {
-                    socket.send(id, ZMQ.SNDMORE);
-                    socket.send("", ZMQ.SNDMORE);
+                    socket.send(id,    ZMQ.SNDMORE);
+                    socket.send("",    ZMQ.SNDMORE);
                     socket.send(respuesta);
                 } else {
                     socket.send(respuesta);

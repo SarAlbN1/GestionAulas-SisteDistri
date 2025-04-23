@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ./run_backup.sh <ipServidor> [puerto]
+# Ejecuta el Servidor Réplica de respaldo
+# Uso: ./run_backup.sh <ipServidorPrincipal> [puertoPrincipal]
 IP="${1:-localhost}"
 PUERTO="${2:-5555}"
 

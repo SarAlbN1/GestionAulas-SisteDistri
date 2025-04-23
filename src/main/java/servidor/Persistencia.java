@@ -4,14 +4,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 
-/**
- * Maneja la escritura de archivos de solicitudes y asignaciones.
- */
+///Maneja la escritura de archivos de solicitudes y asignaciones.
+ 
 public class Persistencia {
 
     /**
      * Guarda el contenido de una solicitud o error en un archivo de texto.
-     *
      * @param tipo      indica la categoría del registro: "error" o cualquier otro para asignaciones
      * @param contenido el texto (JSON de la solicitud) que se desea persistir
      */

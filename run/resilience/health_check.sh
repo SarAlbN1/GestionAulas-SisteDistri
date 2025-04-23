@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ./health_check.sh <ipServidor> [puerto]
+# Ejecuta el HealthChecker que supervisa al Servidor Central
+# Uso: ./health_check.sh <ipServidor> [puerto]
 IP="${1:-localhost}"
 PUERTO="${2:-5555}"
 
