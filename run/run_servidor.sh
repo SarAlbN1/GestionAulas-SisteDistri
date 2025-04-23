@@ -1,18 +1,15 @@
-#!/bin/bash
-# Ejecuta el servidor central
+#!/usr/bin/env bash
+set -euo pipefail
 
-SERVIDOR_DIR="src/servidor"
-MODELO_DIR="src/modelo"
+# Ejecuta el Servidor Central (ROUTER asíncrono)
+# Uso: ./run_servidor.sh
 
-if [ ! -d "$SERVIDOR_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
-  echo "Error: No se encuentran los directorios src/servidor o src/modelo"
-  exit 1
-fi
+cd "$(dirname "$0")/.."
 
-mkdir -p bin
+echo "[run_servidor] Limpiando y compilando proyecto..."
+mvn clean compile
 
-echo "Compilando servidor..."
-javac -cp "lib/*" -d bin "$SERVIDOR_DIR"/*.java "$MODELO_DIR"/*.java
-
-echo "Ejecutando servidor..."
-java -cp "bin:lib/*" servidor.Servidor tcp://0.0.0.0:5555
+echo "[run_servidor] Iniciando Servidor Central (ROUTER asíncrono) en el puerto 5555..."
+mvn exec:java \
+  -Dexec.mainClass="servidor.Servidor" \
+  -Dexec.cleanupDaemonThreads=false
