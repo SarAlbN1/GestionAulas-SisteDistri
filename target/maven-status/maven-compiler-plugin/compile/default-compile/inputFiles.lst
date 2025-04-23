@@ -3,8 +3,7 @@
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Aula.java
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Constantes.java
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Solicitud.java
-/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/programas/Programa1.java
-/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/programas/Programa2.java
+/Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/programas/ProgramaAcademico.java
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/AsignadorAulas.java
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/ManejadorSolicitudes.java
 /Users/saraalbarracin/Downloads/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/Persistencia.java
