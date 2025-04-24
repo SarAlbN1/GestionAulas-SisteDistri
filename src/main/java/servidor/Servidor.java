@@ -2,46 +2,83 @@ package servidor;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.zeromq.ZMQ;
+import java.util.Map;
 
-/**
- * Servidor Central asíncrono – usa ROUTER para atender DEALER de Facultades.
- */
+import org.zeromq.ZMQ;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import modelo.Solicitud;
+
 public class Servidor {
 
     private static final int PUERTO = 5555;
     private static final int MAX_HILOS = 10;
 
     public static void main(String[] args) {
-        System.out.println("[Servidor] Iniciando en modo asíncrono (ROUTER)...");
         ZMQ.Context context = ZMQ.context(1);
-
-        // ROUTER recibe primero identidad, luego empty frame, luego cuerpo
         ZMQ.Socket socket = context.socket(ZMQ.ROUTER);
-        socket.bind("tcp://*:" + PUERTO);
+        socket.bind("tcp://0.0.0.0:" + PUERTO);
 
         ExecutorService pool = Executors.newFixedThreadPool(MAX_HILOS);
+        AsignadorAulas asignador = new AsignadorAulas();
         Persistencia persistencia = new Persistencia();
-        AsignadorAulas asignador   = new AsignadorAulas();
+        Gson gson = new Gson();
 
-        while (!Thread.currentThread().isInterrupted()) {
-            // 1) identidad del cliente
+        System.out.println("[Servidor][async] escuchando en el puerto " + PUERTO);
+
+        while (true) {
             byte[] clientId = socket.recv();
-            // 2) frame vacío (separador)
-            socket.recv();
-            // 3) JSON de solicitud
-            String solicitudJson = new String(socket.recv(), ZMQ.CHARSET);
-            System.out.println("[Servidor] Llega de " 
-                + new String(clientId, ZMQ.CHARSET));
+            socket.recv(); // empty frame
+            String json = new String(socket.recv(), ZMQ.CHARSET);
 
-            // 4) despacha en hilo, pasándole también clientId
-            pool.execute(new ManejadorSolicitudes(
-                clientId, solicitudJson, socket, asignador, persistencia
-            ));
+            System.out.println("[Servidor][async] conexión entrante desde: " + new String(clientId, ZMQ.CHARSET));
+
+            pool.execute(() -> {
+                try {
+                    Map<String, Object> data = gson.fromJson(json, new TypeToken<Map<String, Object>>() {}.getType());
+
+                    if ("inscripcion".equals(data.get("tipo"))) {
+                        String nombreFacultad = (String) data.get("facultad");
+                        System.out.println("📥 Inscripción recibida de Facultad: " + nombreFacultad);
+
+                        socket.send(clientId, ZMQ.SNDMORE);
+                        socket.send("", ZMQ.SNDMORE);
+                        socket.send("Inscripción exitosa");
+                        return;
+                    }
+
+                    Solicitud solicitud = gson.fromJson(json, Solicitud.class);
+                    boolean ok = asignador.asignarAulas(solicitud);
+
+                    Map<String, Object> respuesta = Map.of(
+                        "estado", ok ? "asignado" : "rechazado",
+                        "programa", solicitud.getPrograma(),
+                        "facultad", solicitud.getFacultad(),
+                        "semestre", solicitud.getSemestre(),
+                        "salonesAsignados", ok ? solicitud.getSalones() : 0,
+                        "laboratoriosAsignados", ok ? solicitud.getLaboratorios() : 0,
+                        "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles para satisfacer la solicitud."
+                    );
+
+                    if (!ok) {
+                        System.out.println("⚠️ ALERTA: No hay recursos suficientes para " + solicitud.getPrograma());
+                    }
+
+                    String respuestaJson = gson.toJson(respuesta);
+                    persistencia.guardar(ok ? "asignaciones" : "rechazos", respuestaJson);
+
+                    socket.send(clientId, ZMQ.SNDMORE);
+                    socket.send("", ZMQ.SNDMORE);
+                    socket.send(respuestaJson);
+
+                } catch (Exception e) {
+                    System.err.println("❌ Error procesando mensaje: " + json);
+                    socket.send(clientId, ZMQ.SNDMORE);
+                    socket.send("", ZMQ.SNDMORE);
+                    socket.send("ERROR");
+                }
+            });
         }
-
-        pool.shutdown();
-        socket.close();
-        context.term();
     }
 }

@@ -1,69 +1,70 @@
 package programas;
 
 import org.zeromq.ZMQ;
-
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import modelo.Solicitud;
+import java.util.Map;
 
 /**
- * ProgramaAcademico genera y envía una solicitud a la Facultad indicada.
- * Sigue un patrón síncrono REQ/REP con la Facultad o proxy.
+ * ProgramaAcadémico que envía una solicitud a su Facultad usando comunicación asíncrona DEALER ↔ ROUTER.
  */
 public class ProgramaAcademico {
 
     private static final int PUERTO_FACULTAD = 6000;
-    private static final int ARGS_REQUERIDOS   = 6;
 
-    /**
-     * Punto de entrada del programa.
-     *
-     * @param args args[0]=nombrePrograma, args[1]=codigoFacultad, 
-     *             args[2]=semestre, args[3]=salones, args[4]=laboratorios,
-     *             args[5]=ipFacultad
-     */
     public static void main(String[] args) {
-        if (args.length < ARGS_REQUERIDOS) {
-            System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <codigoFacultad> "
+        if (args.length < 6) {
+            System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <nombreFacultad> "
                 + "<semestre> <salones> <laboratorios> <ipFacultad>");
             return;
         }
 
-        String nombrePrograma = args[0];
-        String codigoFacultad = args[1];
-        int semestre, salones, laboratorios;
+        String nombrePrograma  = args[0];
+        String nombreFacultad  = args[1];
+        int semestre           = Integer.parseInt(args[2]);
+        int salones            = Integer.parseInt(args[3]);
+        int laboratorios       = Integer.parseInt(args[4]);
+        String ipFacultad      = args[5];
 
-        try {
-            semestre     = Integer.parseInt(args[2]);
-            salones      = Integer.parseInt(args[3]);
-            laboratorios = Integer.parseInt(args[4]);
-        } catch (NumberFormatException e) {
-            System.err.println("Error: semestre, salones y laboratorios deben ser enteros.");
-            return;
-        }
-
-        if (semestre < 1 || salones < 0 || laboratorios < 0) {
-            System.err.println("Error: valores inválidos. Semestre ≥1, salones ≥0, laboratorios ≥0.");
-            return;
-        }
-
-        String ipFacultad = args[5];
         Solicitud solicitud = new Solicitud(
-            nombrePrograma, codigoFacultad, semestre, salones, laboratorios
+            nombrePrograma, nombreFacultad, semestre, salones, laboratorios
         );
 
         ZMQ.Context context = ZMQ.context(1);
-        ZMQ.Socket socket   = null;
+        ZMQ.Socket socket = context.socket(ZMQ.DEALER);
+
+        // Establecer identidad para trazabilidad desde Facultad
+        socket.setIdentity(("PROG-" + nombrePrograma).getBytes(ZMQ.CHARSET));
+        Gson gson = new Gson();
+
         try {
-            socket = context.socket(ZMQ.REQ);
             socket.connect("tcp://" + ipFacultad + ":" + PUERTO_FACULTAD);
 
-            String json = new Gson().toJson(solicitud);
+            String json = gson.toJson(solicitud);
             socket.send(json);
-            String respuesta = socket.recvStr();
-            System.out.println("[Programa] Respuesta recibida: " + respuesta);
+
+            String respuestaJson = socket.recvStr();
+            Map<String, Object> respuesta = gson.fromJson(respuestaJson, new TypeToken<Map<String, Object>>() {}.getType());
+
+            System.out.println("\n📥 Respuesta de la Facultad:");
+            System.out.println("  Estado: " + respuesta.get("estado"));
+
+            if ("asignado".equals(respuesta.get("estado"))) {
+                System.out.println("  Programa: " + respuesta.get("programa"));
+                System.out.println("  Facultad: " + respuesta.get("facultad"));
+                System.out.println("  Semestre: " + ((Double) respuesta.get("semestre")).intValue());
+                System.out.println("  Salones asignados: " + ((Double) respuesta.get("salonesAsignados")).intValue());
+                System.out.println("  Laboratorios asignados: " + ((Double) respuesta.get("laboratoriosAsignados")).intValue());
+            } else {
+                System.out.println("  Motivo: " + respuesta.get("motivo"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Error de comunicación con la Facultad: " + e.getMessage());
         } finally {
-            if (socket != null) socket.close();
+            socket.close();
             context.term();
         }
     }

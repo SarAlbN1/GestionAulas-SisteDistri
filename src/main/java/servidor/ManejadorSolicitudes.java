@@ -1,13 +1,12 @@
 package servidor;
 
 import org.zeromq.ZMQ;
-
 import com.google.gson.Gson;
-
 import modelo.Solicitud;
+import java.util.Map;
 
 /**
- * Atiende en paralelo cada solicitud asíncrona, reenviando la respuesta al DEALER correcto.
+ * Manejador de solicitudes asíncronas en modo comunicación asíncrona DEALER ↔ ROUTER. Deserializa, procesa, responde con JSON estructurado.
  */
 public class ManejadorSolicitudes implements Runnable {
 
@@ -22,27 +21,44 @@ public class ManejadorSolicitudes implements Runnable {
                                 ZMQ.Socket socket,
                                 AsignadorAulas asignador,
                                 Persistencia persistencia) {
-        this.clientId      = clientId;
+        this.clientId = clientId;
         this.solicitudJson = solicitudJson;
-        this.socket        = socket;
-        this.asignador     = asignador;
-        this.persistencia  = persistencia;
+        this.socket = socket;
+        this.asignador = asignador;
+        this.persistencia = persistencia;
     }
 
     @Override
     public void run() {
         Gson gson = new Gson();
-        Solicitud sol = gson.fromJson(solicitudJson, Solicitud.class);
-        System.out.println("[Manejador] Procesando " + sol.getPrograma());
 
-        boolean ok = asignador.asignarAulas(sol);
-        String respuesta = ok ? "Asignación exitosa" : "Sin aulas disponibles";
-        String tipo = ok ? "asignaciones" : "error";
-        persistencia.guardar(tipo, solicitudJson);
+        try {
+            Solicitud sol = gson.fromJson(solicitudJson, Solicitud.class);
+            boolean ok = asignador.asignarAulas(sol);
 
-        // RESPUESTA asíncrona: reenviamos el clientId + empty frame + cuerpo
-        socket.send(clientId, ZMQ.SNDMORE);
-        socket.send("",       ZMQ.SNDMORE);
-        socket.send(respuesta);
+            Map<String, Object> respuesta = Map.of(
+                "estado", ok ? "asignado" : "rechazado",
+                "programa", sol.getPrograma(),
+                "facultad", sol.getFacultad(),
+                "semestre", sol.getSemestre(),
+                "salonesAsignados", ok ? sol.getSalones() : 0,
+                "laboratoriosAsignados", ok ? sol.getLaboratorios() : 0,
+                "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles para satisfacer la solicitud."
+            );
+
+            String respuestaJson = gson.toJson(respuesta);
+            String tipo = ok ? "asignaciones" : "rechazos";
+            persistencia.guardar(tipo, respuestaJson);
+
+            socket.send(clientId, ZMQ.SNDMORE);
+            socket.send("",       ZMQ.SNDMORE);
+            socket.send(respuestaJson);
+
+        } catch (Exception e) {
+            System.err.println("❌ Error en ManejadorSolicitudes: " + e.getMessage());
+            socket.send(clientId, ZMQ.SNDMORE);
+            socket.send("",       ZMQ.SNDMORE);
+            socket.send("ERROR");
+        }
     }
 }

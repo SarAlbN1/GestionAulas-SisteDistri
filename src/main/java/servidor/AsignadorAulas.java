@@ -1,48 +1,50 @@
 package servidor;
 
-import modelo.Constantes;
 import modelo.Solicitud;
 
-//Clase encargada de validar y asignar aulas de acuerdo a la disponibilidad.
-
+/**
+ * AsignadorAulas gestiona la distribución de recursos educativos (salones y laboratorios), asegurando integridad en entornos concurrentes asincrónicos.
+ */
 public class AsignadorAulas {
 
-    // (inicializado desde Constantes)
-    private int salonesDisponibles = Constantes.TOTAL_SALONES;
-    private int laboratoriosDisponibles = Constantes.TOTAL_LABORATORIOS;
+    // Recursos totales iniciales del sistema
+    private static final int TOTAL_SALONES = 380;
+    private static final int TOTAL_LABORATORIOS = 60;
+    private static final int LIMITE_AULAS_MOVILES = 40;
 
-    // Contador laboratorios que serán suplidos con aulas móviles
-    private int aulasMoviles = 0;
+    // Recursos disponibles durante la ejecución
+    private int salonesDisponibles = TOTAL_SALONES;
+    private int laboratoriosDisponibles = TOTAL_LABORATORIOS;
+    private int aulasMovilesUsadas = 0;
 
-    /**
-     * Intenta asignar los espacios solicitados (salones y laboratorios).
-     * Este método está sincronizado para garantizar la consistencia en entornos
-     * multihilo.
-     *
-     * @param solicitud objeto que contiene la cantidad de salones y laboratorios
-     *                  requeridos
-     * @return true si la asignación fue exitosa; false en caso contrario
-     */
     public synchronized boolean asignarAulas(Solicitud solicitud) {
-        // Caso 1: hay suficientes salones y laboratorios físicos disponibles
-        if (solicitud.getSalones() <= salonesDisponibles &&
-                solicitud.getLaboratorios() <= laboratoriosDisponibles) {
+        int reqSalones = solicitud.getSalones();
+        int reqLabs = solicitud.getLaboratorios();
 
-            // Reducir el conteo de espacios físicos restantes
-            salonesDisponibles -= solicitud.getSalones();
-            laboratoriosDisponibles -= solicitud.getLaboratorios();
-
+        // 🟢 Caso 1: recursos físicos disponibles
+        if (reqSalones <= salonesDisponibles && reqLabs <= laboratoriosDisponibles) {
+            salonesDisponibles -= reqSalones;
+            laboratoriosDisponibles -= reqLabs;
             return true;
         }
-        // Caso 2: no hay laboratorios físicos suficientes, se usan aulas móviles
-        else if (solicitud.getLaboratorios() > laboratoriosDisponibles && aulasMoviles + solicitud.getLaboratorios() <= Constantes.LIMITE_AULAS_MOVILES) {
-            salonesDisponibles -= solicitud.getSalones();  // Reducir sólo los salones físicos
-            aulasMoviles += solicitud.getLaboratorios(); // Aumentar el número de aulas móviles utilizadas
+
+        // 🟡 Caso 2: se requieren aulas móviles para suplir laboratorios faltantes
+        boolean puedeSuplirConMoviles = reqLabs > laboratoriosDisponibles &&
+                                        aulasMovilesUsadas + reqLabs <= LIMITE_AULAS_MOVILES &&
+                                        reqSalones <= salonesDisponibles;
+
+        if (puedeSuplirConMoviles) {
+            salonesDisponibles -= reqSalones;
+            aulasMovilesUsadas += reqLabs;
             return true;
         }
-        // Caso 3: no es posible satisfacer la solicitud ni con aulas móviles
-        else {
-            return false;
-        }
+
+        // 🔴 Caso 3: no es posible satisfacer la solicitud
+        return false;
     }
+
+    // Métodos para monitoreo/logging si deseas imprimir en consola o verificar en pruebas
+    public synchronized int getSalonesDisponibles()       { return salonesDisponibles; }
+    public synchronized int getLaboratoriosDisponibles()  { return laboratoriosDisponibles; }
+    public synchronized int getAulasMovilesUsadas()       { return aulasMovilesUsadas; }
 }
