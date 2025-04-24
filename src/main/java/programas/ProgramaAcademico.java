@@ -35,30 +35,38 @@ public class ProgramaAcademico {
         ZMQ.Context context = ZMQ.context(1);
         ZMQ.Socket socket = context.socket(ZMQ.DEALER);
 
-        // Establecer identidad para trazabilidad desde Facultad
         socket.setIdentity(("PROG-" + nombrePrograma).getBytes(ZMQ.CHARSET));
         Gson gson = new Gson();
 
         try {
+            System.out.println("[Programa] Conectando con Facultad " + nombreFacultad + " en " + ipFacultad + ":" + PUERTO_FACULTAD);
             socket.connect("tcp://" + ipFacultad + ":" + PUERTO_FACULTAD);
 
             String json = gson.toJson(solicitud);
-            socket.send(json);
+            System.out.println("[Programa] 📨 Enviando solicitud: " + json);
+            socket.send("", ZMQ.SNDMORE);  // Primer frame vacío
+            socket.send(json);  // Enviar solicitud
 
             String respuestaJson = socket.recvStr();
-            Map<String, Object> respuesta = gson.fromJson(respuestaJson, new TypeToken<Map<String, Object>>() {}.getType());
 
-            System.out.println("\n📥 Respuesta de la Facultad:");
-            System.out.println("  Estado: " + respuesta.get("estado"));
-
-            if ("asignado".equals(respuesta.get("estado"))) {
-                System.out.println("  Programa: " + respuesta.get("programa"));
-                System.out.println("  Facultad: " + respuesta.get("facultad"));
-                System.out.println("  Semestre: " + ((Double) respuesta.get("semestre")).intValue());
-                System.out.println("  Salones asignados: " + ((Double) respuesta.get("salonesAsignados")).intValue());
-                System.out.println("  Laboratorios asignados: " + ((Double) respuesta.get("laboratoriosAsignados")).intValue());
+            if (respuestaJson == null || respuestaJson.isEmpty()) {
+                System.err.println("❌ Error: No se recibió respuesta de la facultad.");
             } else {
-                System.out.println("  Motivo: " + respuesta.get("motivo"));
+                System.out.println("[Programa] 📩 Respuesta recibida: " + respuestaJson);
+                Map<String, Object> respuesta = gson.fromJson(respuestaJson, new TypeToken<Map<String, Object>>() {}.getType());
+
+                System.out.println("\n📥 Resultado procesado:");
+                System.out.println("  Estado: " + respuesta.get("estado"));
+
+                if ("asignado".equals(respuesta.get("estado"))) {
+                    System.out.println("  Programa: " + respuesta.get("programa"));
+                    System.out.println("  Facultad: " + respuesta.get("facultad"));
+                    System.out.println("  Semestre: " + ((Double) respuesta.get("semestre")).intValue());
+                    System.out.println("  Salones asignados: " + ((Double) respuesta.get("salonesAsignados")).intValue());
+                    System.out.println("  Laboratorios asignados: " + ((Double) respuesta.get("laboratoriosAsignados")).intValue());
+                } else {
+                    System.out.println("  Motivo: " + respuesta.get("motivo"));
+                }
             }
 
         } catch (Exception e) {

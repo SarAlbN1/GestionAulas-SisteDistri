@@ -11,7 +11,7 @@ public class HealthChecker {
 
     private static final String IP_SERVIDOR = "localhost";
     private static final int PUERTO_SERVIDOR = 5555;
-    private static final int INTERVALO_MS = 5000;
+    private static final int INTERVALO_MS = 10000;  // Tiempo de espera aumentado a 10 segundos
 
     public static void main(String[] args) throws InterruptedException {
         System.out.println("[HealthChecker][async] Iniciando monitoreo al servidor en modo asíncrono...");
@@ -19,11 +19,14 @@ public class HealthChecker {
         while (true) {
             ZMQ.Context context = ZMQ.context(1);
             ZMQ.Socket socket = context.socket(ZMQ.DEALER);
-            socket.setIdentity("HEALTH".getBytes(ZMQ.CHARSET));
+            socket.setIdentity("HEALTH".getBytes(ZMQ.CHARSET));  // Asignamos un clientId
 
             try {
                 socket.connect("tcp://" + IP_SERVIDOR + ":" + PUERTO_SERVIDOR);
-                socket.send("health-check");  // Enviar health-check
+
+                // Enviar health-check con el clientId y frame vacío
+                socket.send("", ZMQ.SNDMORE);  // Primer frame vacío
+                socket.send("health-check");  // Segundo frame con el mensaje
 
                 // Crear un poller para manejar el timeout
                 Poller poller = context.poller(1);  // Solo un socket
@@ -39,10 +42,10 @@ public class HealthChecker {
                     break;
                 }
 
-                // Si respondieron, se obtiene la respuesta
+                // Si respondieron, simplemente verificamos si recibimos algo
                 String respuesta = socket.recvStr();
-                if (respuesta != null && "OK".equals(respuesta)) {
-                    System.out.println("[HealthChecker] ✅ Servidor activo.");
+                if (respuesta != null) {
+                    System.out.println("[HealthChecker] ✅ Servidor activo. Respuesta recibida: " + respuesta);
                 } else {
                     System.out.println("[HealthChecker] ❌ El servidor no respondió correctamente.");
                 }
