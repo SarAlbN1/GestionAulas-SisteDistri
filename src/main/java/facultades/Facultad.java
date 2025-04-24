@@ -34,15 +34,15 @@ public class Facultad {
 
                 String ack = envio.recvStr();
 
-                if ("Inscripción exitosa".equals(ack)) {
-                    System.out.println("[" + nombreFacultad + "] ✅ Inscripción confirmada.");
+                if ("Inscripción exitosa".equals(ack) || "Facultad ya activa".equals(ack)) {
+                    System.out.println("[Facultad - " + nombreFacultad + "] ✅ Conexión establecida con el servidor. Estado: " + ack);
                     conectado = true;
                 } else {
-                    System.out.println("[" + nombreFacultad + "] ⚠️ Respuesta inesperada: " + ack);
+                    System.out.println("[Facultad - " + nombreFacultad + "] ⚠️ Respuesta inesperada del servidor: " + ack);
                     Thread.sleep(REINTENTO_MS);
                 }
             } catch (Exception e) {
-                System.out.println("[" + nombreFacultad + "] ❌ Error al conectar al servidor. Reintentando...");
+                System.out.println("[Facultad - " + nombreFacultad + "] ❌ Error de conexión. Reintentando...");
                 envio.close();
                 envio = context.socket(ZMQ.DEALER);
                 envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
@@ -54,22 +54,21 @@ public class Facultad {
             }
         }
 
-        System.out.println("[" + nombreFacultad + "] 🎓 Escuchando solicitudes en puerto compartido...");
+        System.out.println("[Facultad - " + nombreFacultad + "] 🎓 Facultad activa. Atendiendo solicitudes en puerto compartido...");
 
-        // Escuchar solicitudes entrantes (compartiendo el socket REP)
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                String solicitud = recepcion.recvStr();  // Lectura bloqueante
-                System.out.println("[" + nombreFacultad + "] 📥 Solicitud recibida: " + solicitud);
+                String solicitud = recepcion.recvStr();
+                System.out.println("[Facultad - " + nombreFacultad + "] 📥 Solicitud recibida: " + solicitud);
 
-                envio.send("", ZMQ.SNDMORE);             // Frame vacío
-                envio.send(solicitud);                   // Contenido
+                envio.send("", ZMQ.SNDMORE);
+                envio.send(solicitud);
 
                 String respuesta = envio.recvStr();
                 recepcion.send(respuesta);
-                System.out.println("[" + nombreFacultad + "] 📩 Respuesta enviada al programa académico.");
+                System.out.println("[Facultad - " + nombreFacultad + "] 📤 Respuesta enviada al programa académico.");
             } catch (Exception e) {
-                System.out.println("[" + nombreFacultad + "] ❌ Error al procesar solicitud.");
+                System.out.println("[Facultad - " + nombreFacultad + "] ❌ Error al procesar solicitud: " + e.getMessage());
             }
         }
 

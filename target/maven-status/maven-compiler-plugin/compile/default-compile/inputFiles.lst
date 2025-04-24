@@ -1,11 +1,11 @@
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/facultades/Facultad.java
-/Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/facultades/inscripciones.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Aula.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/modelo/Solicitud.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/programas/ProgramaAcademico.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/AsignadorAulas.java
-/Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/ManejadorSolicitudes.java
+/Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/ManejadorSolicitudesServidor.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/Persistencia.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/Servidor.java
+/Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/servidor/inscripciones.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/tolerancia/HealthChecker.java
 /Users/saraalbarracin/CodeProjects/GitHub/GestionAulas-SisteDistri/src/main/java/tolerancia/ServidorReplica.java

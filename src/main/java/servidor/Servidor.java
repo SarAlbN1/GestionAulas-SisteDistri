@@ -3,17 +3,35 @@ package servidor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.zeromq.*;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
 import modelo.Solicitud;
 
+/**
+ * Servidor central encargado de gestionar inscripciones y solicitudes de aulas.
+ */
 public class Servidor {
 
     private static final int PUERTO = 5555;
     private static final int MAX_HILOS = 10;
+    private static final Set<String> facultadesInscritas = ConcurrentHashMap.newKeySet();
 
     public static void main(String[] args) {
+        // Lanzar automáticamente el manejador de inscripción en hilo separado
+        new Thread(() -> {
+            try {
+                inscripciones.main(null);
+            } catch (Exception e) {
+                System.err.println("[Servidor] ❌ Error al iniciar inscripciones: " + e.getMessage());
+            }
+        }).start();
+
         ZMQ.Context context = ZMQ.context(1);
         ZMQ.Socket socket = context.socket(ZMQ.ROUTER);
         socket.bind("tcp://0.0.0.0:" + PUERTO);
@@ -49,32 +67,23 @@ public class Servidor {
                         String nombreFacultad = (String) data.get("facultad");
                         System.out.println("[Servidor] 📥 Inscripción recibida de Facultad: " + nombreFacultad);
 
+                        boolean yaRegistrada = facultadesInscritas.contains(nombreFacultad);
+                        if (!yaRegistrada) {
+                            facultadesInscritas.add(nombreFacultad);
+                            System.out.println("[Servidor] ✅ Facultad registrada como nueva: " + nombreFacultad);
+                        } else {
+                            System.out.println("[Servidor] ⚠️ Facultad ya estaba inscrita: " + nombreFacultad);
+                        }
+
                         socket.send(clientId, ZMQ.SNDMORE);
                         socket.send("", ZMQ.SNDMORE);
                         socket.send("Inscripción exitosa");
                         return;
                     }
 
-                    Solicitud solicitud = gson.fromJson(json, Solicitud.class);
-                    boolean ok = asignador.asignarAulas(solicitud);
-
-                    Map<String, Object> respuesta = Map.of(
-                        "estado", ok ? "asignado" : "rechazado",
-                        "programa", solicitud.getPrograma(),
-                        "facultad", solicitud.getFacultad(),
-                        "semestre", solicitud.getSemestre(),
-                        "salonesAsignados", ok ? solicitud.getSalones() : 0,
-                        "laboratoriosAsignados", ok ? solicitud.getLaboratorios() : 0,
-                        "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles."
-                    );
-
-                    String respuestaJson = gson.toJson(respuesta);
-                    persistencia.guardar(ok ? "asignaciones" : "rechazos", respuestaJson);
-
-                    System.out.println("[Servidor] Enviando respuesta: " + respuestaJson);
-                    socket.send(clientId, ZMQ.SNDMORE);
-                    socket.send("", ZMQ.SNDMORE);
-                    socket.send(respuestaJson);
+                    // Procesar solicitud académica
+                    Runnable manejador = new ManejadorSolicitudesServidor(clientId, json, socket, asignador, persistencia);
+                    manejador.run();
 
                 } catch (Exception e) {
                     System.err.println("❌ Error procesando mensaje: " + json);
@@ -84,5 +93,9 @@ public class Servidor {
                 }
             });
         }
+    }
+
+    public static Set<String> getFacultadesInscritas() {
+        return facultadesInscritas;
     }
 }
