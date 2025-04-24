@@ -1,2 +1,0 @@
-2025-04-24 02:20:20 - {"laboratoriosAsignados":2,"motivo":"","estado":"asignado","semestre":2025,"salonesAsignados":5,"programa":"ProgramaDeMatematicas","facultad":"FacultadDeMatematicas"}
-2025-04-24 02:30:41 - {"salonesAsignados":5,"semestre":2025,"estado":"asignado","motivo":"","laboratoriosAsignados":2,"facultad":"FacultadDeMatematicas","programa":"ProgramaDeMatematicas"}

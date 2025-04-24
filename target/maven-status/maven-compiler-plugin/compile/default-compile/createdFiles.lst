@@ -1,6 +1,6 @@
 modelo/Aula.class
 programas/ProgramaAcademico$1.class
-facultades/FacultadWorker.class
+facultades/inscripciones.class
 servidor/Servidor$1.class
 servidor/AsignadorAulas.class
 modelo/Solicitud.class
@@ -10,6 +10,5 @@ tolerancia/ServidorReplica.class
 servidor/Servidor.class
 servidor/ManejadorSolicitudes.class
 programas/ProgramaAcademico.class
-facultades/FacultadLauncher.class
 servidor/Persistencia$1.class
 tolerancia/HealthChecker.class
