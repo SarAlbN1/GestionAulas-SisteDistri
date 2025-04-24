@@ -8,11 +8,11 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-FACULTAD_DIR="src/facultades"
-MODELO_DIR="src/modelo"
+FACULTAD_DIR="src/main/java/facultades"
+MODELO_DIR="src/main/java/modelo"
 
 if [ ! -d "$FACULTAD_DIR" ] || [ ! -d "$MODELO_DIR" ]; then
-  echo "Error: No se encuentran los directorios src/facultades o src/modelo"
+  echo "Error: No se encuentran los directorios src/main/java/facultades o src/main/java/modelo"
   exit 1
 fi
 

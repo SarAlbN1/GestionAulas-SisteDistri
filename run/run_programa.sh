@@ -8,6 +8,6 @@
 chmod +x run/*.sh
 
 mkdir -p bin
-javac -cp "lib/*" -d bin programas/Programa1.java modelo/*.java
+javac -cp "lib/*" -d bin src/main/java/programas/Programa1.java src/main/java/modelo/*.java
 
 java -cp bin programas.Programa1 "$1" "$2" "$3" "$4" "$5"
