@@ -40,6 +40,7 @@ public class Facultad {
             envio.setIdentity(("FAC-" + PUERTO_RECEPCION).getBytes(ZMQ.CHARSET));
         }
         envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
+        System.out.println("[Facultad][" + mode + "] conectada al servidor en tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
 
         Gson gson = new Gson();
         System.out.println("[Facultad][" + mode + "] esperando en " + PUERTO_RECEPCION);
@@ -48,7 +49,10 @@ public class Facultad {
             // 1) Recibir JSON del programa académico
             String json = recepcion.recvStr();
             Solicitud s = gson.fromJson(json, Solicitud.class);
-            System.out.println("[Facultad][" + mode + "] recibida: " + s);
+            System.out.println("[Facultad] Solicitud recibida del programa → Facultad = " + s.getFacultad()
+    + ", Salones = " + s.getSalones()
+    + ", Laboratorios = " + s.getLaboratorios());
+
 
             // 2) Enviar al servidor (no bloqueante si async)
             envio.send(json);

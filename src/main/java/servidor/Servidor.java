@@ -48,12 +48,14 @@ public class Servidor {
             if (mode.equals("async")) {
                 // En asíncrono recibimos identidad, empty frame y cuerpo
                 clientId = socket.recv();
-                socket.recv();
+                socket.recv(); // Empty frame
                 json     = new String(socket.recv(), ZMQ.CHARSET);
+                System.out.println("[Servidor][" + mode + "] conexión entrante desde: " + new String(clientId, ZMQ.CHARSET));
             } else {
-                // En síncrono recibimos directamente la cadena
                 json = socket.recvStr();
+                System.out.println("[Servidor][" + mode + "] solicitud recibida (modo síncrono)");
             }
+            
 
             final byte[]   id = clientId;
             final String   rq = json;
@@ -61,6 +63,10 @@ public class Servidor {
             pool.execute(() -> {
                 // Deserializar y procesar la solicitud
                 Solicitud solicitud = gson.fromJson(rq, Solicitud.class);
+                System.out.println("[Servidor] Solicitud recibida: Facultad = " + solicitud.getFacultad()
+    + ", Salones = " + solicitud.getSalones()
+    + ", Laboratorios = " + solicitud.getLaboratorios());
+
                 boolean ok = asignador.asignarAulas(solicitud);
                 String respuesta = ok ? "Asignación exitosa" : "Sin aulas disponibles";
 
