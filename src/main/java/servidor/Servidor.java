@@ -27,7 +27,7 @@ public class Servidor {
         System.out.println("[Servidor] Escuchando en el puerto " + PUERTO);
 
         while (true) {
-            byte[] clientId = socket.recv();
+            byte[] clientId = socket.recv();  // Recibe el clientId
             socket.recv(); // frame vacío
             String json = new String(socket.recv(), ZMQ.CHARSET);  // Solicitud recibida
 
@@ -46,6 +46,7 @@ public class Servidor {
             // Si no es un health-check, procesamos la solicitud de aula
             pool.submit(() -> {  // Usamos submit para ejecutar en un hilo del pool
                 try {
+                    // Asegurarnos de que el json recibido tiene el formato esperado
                     Map<String, Object> data = gson.fromJson(json, new TypeToken<Map<String, Object>>() {}.getType());
 
                     if ("inscripcion".equals(data.get("tipo"))) {
@@ -92,4 +93,3 @@ public class Servidor {
         }
     }
 }
-

@@ -2,12 +2,10 @@ package facultades;
 
 import org.zeromq.ZMQ;
 import com.google.gson.Gson;
-
 import java.util.*;
 
 public class Facultad {
 
-    private static final int PUERTO_RECEPCION = 6000;
     private static final int PUERTO_SERVIDOR = 5555;
     private static final int REINTENTO_MS = 3000;
     private static final int MAX_PROGRAMAS = 5;
@@ -27,11 +25,11 @@ public class Facultad {
 
         // Socket para recibir solicitudes desde los programas académicos
         ZMQ.Socket recepcion = context.socket(ZMQ.REP);
-        recepcion.bind("tcp://*:" + PUERTO_RECEPCION);
+        recepcion.bind("tcp://*:" + 6000);  // Puerto para recibir solicitudes de los programas académicos
 
         // Socket para enviar solicitudes al servidor
         ZMQ.Socket envio = context.socket(ZMQ.DEALER);
-        envio.setIdentity(("FAC-" + PUERTO_RECEPCION).getBytes(ZMQ.CHARSET));
+        envio.setIdentity(("FAC-" + nombreFacultad).getBytes(ZMQ.CHARSET));  // Configuramos el clientId
 
         // Intento de inscripción al servidor
         boolean conectado = false;
@@ -44,8 +42,11 @@ public class Facultad {
                     "facultad", nombreFacultad
                 );
 
-                envio.send(gson.toJson(inscripcion));
-                String ack = envio.recvStr();
+                // Enviar mensaje con el clientId y el cuerpo del mensaje
+                envio.send("", ZMQ.SNDMORE);  // Primer frame vacío
+                envio.send(gson.toJson(inscripcion));  // Enviar solicitud de inscripción
+
+                String ack = envio.recvStr();  // Esperar respuesta
 
                 if ("Inscripción exitosa".equals(ack)) {
                     System.out.println("[Facultad] Inscripción confirmada en el servidor.");
@@ -57,34 +58,37 @@ public class Facultad {
             } catch (Exception e) {
                 System.out.println("[Facultad] ❌ No se pudo conectar al servidor. Reintentando...");
                 envio.close();
-                envio = context.socket(ZMQ.DEALER);
-                envio.setIdentity(("FAC-" + PUERTO_RECEPCION).getBytes(ZMQ.CHARSET));
+                envio = context.socket(ZMQ.DEALER);  // Reconectar
+                envio.setIdentity(("FAC-" + nombreFacultad).getBytes(ZMQ.CHARSET));
                 Thread.sleep(REINTENTO_MS);
             }
         }
 
-        System.out.println("[Facultad][async] Esperando solicitudes en el puerto " + PUERTO_RECEPCION);
+        System.out.println("[Facultad] Esperando solicitudes en el puerto 6000");
 
         int solicitudesAtendidas = 0;
 
+        // Procesar solicitudes de programas académicos
         while (solicitudesAtendidas < MAX_PROGRAMAS) {
             try {
-                // 1. Recibe solicitud del programa académico
+                // Recibe solicitud del programa académico
                 String json = recepcion.recvStr();
                 colaSolicitudes.offer(json);
 
-                // 2. Enviar al servidor con reintento
+                // Enviar la solicitud al servidor
                 boolean entregado = false;
                 while (!entregado) {
                     try {
                         String actual = colaSolicitudes.peek();
-                        envio.send(actual);
-                        String respuesta = envio.recvStr();
+                        // Enviar solicitud con el clientId
+                        envio.send("", ZMQ.SNDMORE);  // Primer frame vacío
+                        envio.send(actual);  // Enviar solicitud al servidor
+                        String respuesta = envio.recvStr();  // Recibir respuesta
 
-                        recepcion.send(respuesta);
-                        System.out.println("[Facultad][async] Respuesta enviada al programa académico.");
+                        recepcion.send(respuesta);  // Enviar la respuesta al programa académico
+                        System.out.println("[Facultad] Respuesta enviada al programa académico.");
 
-                        colaSolicitudes.poll(); // Eliminada de la cola
+                        colaSolicitudes.poll();  // Eliminar solicitud procesada
                         entregado = true;
                         solicitudesAtendidas++;
                     } catch (Exception e) {
@@ -98,7 +102,7 @@ public class Facultad {
             }
         }
 
-        System.out.println("[Facultad] ✔️ Límite de programas alcanzado. Cerrando...");
+        System.out.println("[Facultad] Límite de programas alcanzado. Cerrando...");
         envio.close();
         recepcion.close();
         context.term();

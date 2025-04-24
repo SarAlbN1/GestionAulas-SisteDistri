@@ -23,7 +23,7 @@ public class HealthChecker {
 
             try {
                 socket.connect("tcp://" + IP_SERVIDOR + ":" + PUERTO_SERVIDOR);
-                socket.send("ping");
+                socket.send("health-check");  // Enviar health-check
 
                 // Crear un poller para manejar el timeout
                 Poller poller = context.poller(1);  // Solo un socket
@@ -41,8 +41,10 @@ public class HealthChecker {
 
                 // Si respondieron, se obtiene la respuesta
                 String respuesta = socket.recvStr();
-                if (respuesta != null) {
+                if (respuesta != null && "OK".equals(respuesta)) {
                     System.out.println("[HealthChecker] ✅ Servidor activo.");
+                } else {
+                    System.out.println("[HealthChecker] ❌ El servidor no respondió correctamente.");
                 }
 
             } catch (Exception e) {
