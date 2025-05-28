@@ -1,15 +1,14 @@
 package servidor;
 
-import org.zeromq.ZMQ;
 import com.google.gson.Gson;
 import modelo.Solicitud;
+import org.zeromq.ZMQ;
+
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manejador de solicitudes enviadas desde programas académicos hacia el servidor.
- * Este manejador valida que la facultad esté registrada y procesa la asignación de aulas.
+ * Manejador de solicitudes asíncronas enviadas por facultades registradas.
+ * Usa patrón DEALER ↔ ROUTER.
  */
 public class ManejadorSolicitudesServidor implements Runnable {
 
@@ -18,7 +17,6 @@ public class ManejadorSolicitudesServidor implements Runnable {
     private final ZMQ.Socket socket;
     private final AsignadorAulas asignador;
     private final Persistencia persistencia;
-    private static final Set<String> facultadesInscritas = Servidor.getFacultadesInscritas();
 
     public ManejadorSolicitudesServidor(byte[] clientId,
                                         String solicitudJson,
@@ -38,44 +36,59 @@ public class ManejadorSolicitudesServidor implements Runnable {
 
         try {
             Solicitud sol = gson.fromJson(solicitudJson, Solicitud.class);
-            String nombreFacultad = sol.getFacultad();
+            String facultad = sol.getFacultad();
+            String id = sol.getId();
 
-            if (!facultadesInscritas.contains(nombreFacultad)) {
-                System.out.println("[Servidor] ❌ Facultad no registrada: " + nombreFacultad);
+            // Validar facultad
+            if (!Servidor.esFacultadInscrita(facultad)) {
+                System.err.println("❌ Solicitud rechazada: facultad no registrada → " + facultad + " (ID: " + id + ")");
                 socket.send(clientId, ZMQ.SNDMORE);
                 socket.send("", ZMQ.SNDMORE);
-                socket.send("ERROR: Facultad no registrada en el sistema");
+                socket.send("ERROR: Facultad no registrada");
                 return;
             }
 
-            System.out.println("[Servidor] 📚 Procesando solicitud de programa: " + sol.getPrograma());
+            System.out.println("📚 Procesando solicitud ID " + id + " de programa '" + sol.getPrograma() + "' en facultad '" + facultad + "'");
 
             boolean ok = asignador.asignarAulas(sol);
 
             Map<String, Object> respuesta = Map.of(
+                "id", id,
                 "estado", ok ? "asignado" : "rechazado",
                 "programa", sol.getPrograma(),
                 "facultad", sol.getFacultad(),
                 "semestre", sol.getSemestre(),
                 "salonesAsignados", ok ? sol.getSalones() : 0,
                 "laboratoriosAsignados", ok ? sol.getLaboratorios() : 0,
-                "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles para satisfacer la solicitud."
+                "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles."
             );
 
             String respuestaJson = gson.toJson(respuesta);
             String tipo = ok ? "asignaciones" : "rechazos";
+
+            // Registro en disco
             persistencia.guardar(tipo, respuestaJson);
 
-            System.out.println("[Servidor] ✅ Respuesta enviada a programa: " + respuestaJson);
+            // Envío de respuesta
             socket.send(clientId, ZMQ.SNDMORE);
             socket.send("", ZMQ.SNDMORE);
             socket.send(respuestaJson);
 
+            System.out.println("✅ Respuesta enviada para solicitud ID: " + id);
+
         } catch (Exception e) {
-            System.err.println("❌ Error en ManejadorSolicitudesServidor: " + e.getMessage());
+            System.err.println("❌ Error en ManejadorSolicitudes: " + e.getMessage());
             socket.send(clientId, ZMQ.SNDMORE);
             socket.send("", ZMQ.SNDMORE);
             socket.send("ERROR");
+
+            // Opcional: intentar extraer ID en caso de error para mejor log
+            try {
+                String id = new Gson().fromJson(solicitudJson, Solicitud.class).getId();
+                System.err.println("❗ Ocurrió durante el procesamiento de la solicitud ID: " + id);
+            } catch (Exception ignored) {
+                System.err.println("❗ No se pudo extraer ID para trazabilidad.");
+            }
         }
     }
 }

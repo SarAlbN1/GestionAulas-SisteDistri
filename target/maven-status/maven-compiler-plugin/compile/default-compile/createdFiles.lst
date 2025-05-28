@@ -1,5 +1,5 @@
+facultades/ManejadorSolicitudesFacultad.class
 modelo/Aula.class
-programas/ProgramaAcademico$1.class
 servidor/Servidor$1.class
 servidor/AsignadorAulas.class
 modelo/Solicitud.class
@@ -7,7 +7,6 @@ facultades/Facultad.class
 servidor/Persistencia.class
 tolerancia/ServidorReplica.class
 servidor/Servidor.class
-servidor/inscripciones.class
 servidor/ManejadorSolicitudesServidor.class
 programas/ProgramaAcademico.class
 servidor/Persistencia$1.class

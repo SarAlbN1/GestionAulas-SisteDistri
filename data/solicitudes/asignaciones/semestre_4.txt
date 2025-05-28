@@ -1,0 +1,1 @@
+2025-05-28 11:36:33 - {"id":"9d2a8a5a-890c-4666-a773-def207bb6066","salonesAsignados":2,"facultad":"Ingeniería","estado":"asignado","motivo":"","laboratoriosAsignados":1,"semestre":4,"programa":"Ingeniería de Sistemas"}
