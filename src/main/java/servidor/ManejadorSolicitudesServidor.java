@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import modelo.Solicitud;
 import org.zeromq.ZMQ;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -52,16 +53,18 @@ public class ManejadorSolicitudesServidor implements Runnable {
 
             boolean ok = asignador.asignarAulas(sol);
 
-            Map<String, Object> respuesta = Map.of(
-                "id", id,
-                "estado", ok ? "asignado" : "rechazado",
-                "programa", sol.getPrograma(),
-                "facultad", sol.getFacultad(),
-                "semestre", sol.getSemestre(),
-                "salonesAsignados", ok ? sol.getSalones() : 0,
-                "laboratoriosAsignados", ok ? sol.getLaboratorios() : 0,
-                "motivo", ok ? "" : "⚠️ No hay suficientes aulas disponibles."
-            );
+            // Construir respuesta
+            Map<String, Object> respuesta = new HashMap<>();
+            respuesta.put("id", id);
+            respuesta.put("estado", ok ? "asignado" : "rechazado");
+            respuesta.put("programa", sol.getPrograma());
+            respuesta.put("facultad", sol.getFacultad());
+            respuesta.put("semestre", sol.getSemestre());
+            respuesta.put("salonesAsignados", ok ? sol.getSalones() : 0);
+            respuesta.put("laboratoriosAsignados", ok ? sol.getLaboratorios() : 0);
+            if (!ok) {
+                respuesta.put("motivo", "⚠️ No hay suficientes aulas disponibles.");
+            }
 
             String respuestaJson = gson.toJson(respuesta);
             String tipo = ok ? "asignaciones" : "rechazos";
@@ -82,7 +85,6 @@ public class ManejadorSolicitudesServidor implements Runnable {
             socket.send("", ZMQ.SNDMORE);
             socket.send("ERROR");
 
-            // Opcional: intentar extraer ID en caso de error para mejor log
             try {
                 String id = new Gson().fromJson(solicitudJson, Solicitud.class).getId();
                 System.err.println("❗ Ocurrió durante el procesamiento de la solicitud ID: " + id);

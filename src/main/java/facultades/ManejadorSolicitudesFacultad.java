@@ -3,6 +3,8 @@ package facultades;
 import com.google.gson.Gson;
 import modelo.Solicitud;
 import org.zeromq.ZMQ;
+import org.zeromq.ZMsg;
+import org.zeromq.ZFrame;
 
 /**
  * Manejador de solicitudes que una facultad recibe desde un programa académico.
@@ -12,12 +14,12 @@ public class ManejadorSolicitudesFacultad implements Runnable {
 
     private final Solicitud solicitud;
     private final ZMQ.Socket socketEnvio;
-    private final ZMQ.Socket socketRecepcion;
+    private final ZMsg mensajeOriginal;
 
-    public ManejadorSolicitudesFacultad(Solicitud solicitud, ZMQ.Socket socketEnvio, ZMQ.Socket socketRecepcion) {
+    public ManejadorSolicitudesFacultad(Solicitud solicitud, ZMQ.Socket socketEnvio, ZMsg mensajeOriginal) {
         this.solicitud = solicitud;
         this.socketEnvio = socketEnvio;
-        this.socketRecepcion = socketRecepcion;
+        this.mensajeOriginal = mensajeOriginal;
     }
 
     @Override
@@ -26,36 +28,51 @@ public class ManejadorSolicitudesFacultad implements Runnable {
         try {
             String solicitudJson = gson.toJson(solicitud);
 
-            // Enviar solicitud al servidor
-            socketEnvio.send("", ZMQ.SNDMORE);
+            // Enviar solicitud al servidor usando DEALER (2 frames: vacío + contenido)
+            socketEnvio.sendMore("");
             socketEnvio.send(solicitudJson);
 
-            System.out.println("📤 [Facultad] Enviando solicitud ID " + solicitud.getId()
-                    + " del programa '" + solicitud.getPrograma() + "' al servidor...");
+            System.out.printf("📤 [Facultad] Enviando solicitud ID %s del programa '%s' al servidor...\n",
+                    solicitud.getId(), solicitud.getPrograma());
 
-            // Recibir respuesta del servidor
+            // Esperar respuesta del servidor
+            String frameVacio = socketEnvio.recvStr();
             String respuestaServidor = socketEnvio.recvStr();
 
-            if (respuestaServidor == null || respuestaServidor.isEmpty()) {
-                System.err.println("⚠️ [Facultad] Respuesta vacía desde el servidor para ID " + solicitud.getId());
-                socketRecepcion.send("ERROR: Respuesta vacía desde el servidor.");
+            if (respuestaServidor == null || respuestaServidor.trim().isEmpty()) {
+                System.err.println("⚠️ [Facultad] Respuesta vacía del servidor para ID " + solicitud.getId());
+                responderAPrograma("ERROR: Respuesta vacía del servidor.");
                 return;
             }
 
-            System.out.println("📥 [Facultad] Respuesta del servidor para ID " + solicitud.getId() + ": " + respuestaServidor);
+            System.out.printf("📥 [Facultad] Respuesta del servidor para ID %s: %s\n",
+                    solicitud.getId(), respuestaServidor);
 
-            // Enviar de vuelta al programa académico
-            socketRecepcion.send(respuestaServidor);
-
-            System.out.println("✅ [Facultad] Solicitud ID " + solicitud.getId() + " procesada y respondida a '" + solicitud.getPrograma() + "'.");
+            // Responder al programa académico con los mismos frames de identidad
+            ZMsg respuesta = new ZMsg();
+            for (ZFrame frame : mensajeOriginal) {
+                respuesta.add(frame.duplicate());
+            }
+            respuesta.addString(respuestaServidor);
+            respuesta.send(socketEnvio);
+            System.out.println("✅ [Facultad] Solicitud procesada y respondida correctamente.");
 
         } catch (Exception e) {
-            System.err.println("❌ Error en ManejadorSolicitudesFacultad (ID: " + solicitud.getId() + "): " + e.getMessage());
-            try {
-                socketRecepcion.send("ERROR al procesar solicitud del programa ID: " + solicitud.getId());
-            } catch (Exception ignored) {
-                System.err.println("❌ Error adicional al intentar enviar error al programa.");
+            System.err.printf("❌ Error al procesar solicitud ID %s: %s\n", solicitud.getId(), e.getMessage());
+            responderAPrograma("ERROR: No se pudo procesar la solicitud.");
+        }
+    }
+
+    private void responderAPrograma(String mensaje) {
+        try {
+            ZMsg respuestaError = new ZMsg();
+            for (ZFrame frame : mensajeOriginal) {
+                respuestaError.add(frame.duplicate());
             }
+            respuestaError.addString(mensaje);
+            respuestaError.send(socketEnvio);
+        } catch (Exception e) {
+            System.err.println("❌ Error adicional al intentar enviar mensaje de error al programa.");
         }
     }
 }

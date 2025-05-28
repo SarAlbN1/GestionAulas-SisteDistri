@@ -5,11 +5,14 @@ set -euo pipefail
 # Uso: ./run_servidor.sh
 
 cd "$(dirname "$0")/.."
+PUERTO=5555
+IP_LOCAL="DEFINIR_IP_LOCAL_MANUALMENTE"
 
-echo "[run_servidor] Limpiando y compilando proyecto..."
+echo "[run_servidor] IP local: $IP_LOCAL"
+echo "[run_servidor] Escuchando en puerto $PUERTO..."
+
 mvn clean compile
 
-echo "[run_servidor] Iniciando Servidor Central (ROUTER asíncrono) en el puerto 5555..."
 mvn exec:java \
   -Dexec.mainClass="servidor.Servidor" \
   -Dexec.cleanupDaemonThreads=false

@@ -1,1 +1,6 @@
 2025-05-28 11:36:33 - {"id":"9d2a8a5a-890c-4666-a773-def207bb6066","salonesAsignados":2,"facultad":"Ingeniería","estado":"asignado","motivo":"","laboratoriosAsignados":1,"semestre":4,"programa":"Ingeniería de Sistemas"}
+-------------------------------
+📅 Fecha: 2025-05-28 12:08:54
+📄 ID: ea889cf8-022a-4478-bb20-297cd117c30a
+{"programa":"Ingeniería de Sistemas","semestre":4.0,"laboratoriosAsignados":1.0,"motivo":"","estado":"asignado","facultad":"Ingeniería","salonesAsignados":2.0,"id":"ea889cf8-022a-4478-bb20-297cd117c30a"}
+
