@@ -329,6 +329,14 @@ paket-files/
 __pycache__/
 *.pyc
 
+# ==== ARCHIVOS GENERADOS POR MAVEN (Java) ====
+
+# Carpeta de salida del build de Maven
+/target/
+
+# Configuración de Maven (opcional, si usas archivos locales .mvn/)
+.mvn/
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config
@@ -398,3 +406,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+target/
