@@ -36,6 +36,8 @@ public class Facultad {
         recepcion.bind("tcp://*:" + PUERTO_RECEPCION);
         System.out.println("📡 Facultad escuchando en puerto " + PUERTO_RECEPCION);
 
+        new Thread(new tolerancia.HealthChecker()).start();
+
         ZMQ.Socket envio = context.socket(SocketType.DEALER);
         envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
@@ -56,24 +58,36 @@ public class Facultad {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
-            ZMsg envelope = mensaje.duplicate();
+            ZMsg envelope = mensaje.duplicate();  // Envelope original
             String solicitudStr = new String(mensaje.getLast().getData(), ZMQ.CHARSET);
             System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
-            Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);
-            if (solicitud == null) continue;
+            Solicitud solicitud;
+            try {
+                solicitud = gson.fromJson(solicitudStr, Solicitud.class);
+            } catch (Exception e) {
+                envelope.addString("❌ Solicitud malformada: no se pudo interpretar el JSON.");
+                envelope.send(recepcion);
+                System.out.println("❌ Rechazada solicitud por error de formato.");
+                continue;
+            }
 
             String programa = solicitud.getPrograma();
             String facultadDestino = solicitud.getFacultad();
 
-            // Validar que la facultad destino coincida con esta facultad
-            if (!facultadDestino.equalsIgnoreCase(nombreFacultad)) {
-                envelope.addString("❌ Solicitud rechazada: debe enviarse a la facultad '" + facultadDestino + "', no a '" + nombreFacultad + "'.");
+            System.out.printf("🔍 Validando facultad solicitada '%s' contra esta facultad '%s'%n",
+                    facultadDestino, nombreFacultad);
+
+            // Validar que la facultad destino coincida con la ejecutada
+            if (!facultadDestino.trim().equalsIgnoreCase(nombreFacultad.trim())) {
+                envelope.addString("❌ Solicitud rechazada: la solicitud fue enviada a la facultad '" + facultadDestino +
+                        "', pero esta instancia corresponde a '" + nombreFacultad + "'.");
                 envelope.send(recepcion);
                 System.out.println("❌ Rechazada solicitud: facultad incorrecta → " + facultadDestino);
                 continue;
             }
 
+            // Validar que el programa pertenezca a la facultad
             if (!programasValidos.contains(programa)) {
                 envelope.addString("❌ Programa '" + programa + "' no pertenece a la facultad '" + nombreFacultad + "'.");
                 envelope.send(recepcion);
@@ -81,6 +95,8 @@ public class Facultad {
                 continue;
             }
 
+            // Solicitud válida, enviar al servidor
+            System.out.println("✅ Facultad y programa válidos. Enviando al servidor...");
             pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
         }
 
