@@ -1,4 +1,3 @@
-// facultades/Facultad.java
 package facultades;
 
 import com.google.gson.Gson;
@@ -57,8 +56,8 @@ public class Facultad {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
-            String identificador = mensaje.popString();
-            String solicitudStr = mensaje.popString();
+            ZMsg envelope = mensaje.duplicate(); // copia completa del envelope
+            String solicitudStr = mensaje.popString(); // cuerpo del mensaje
 
             System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
@@ -68,12 +67,10 @@ public class Facultad {
             String programa = solicitud.getPrograma();
 
             if (programasValidos.contains(programa)) {
-                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, identificador));
+                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
             } else {
-                ZMsg respuesta = new ZMsg();
-                respuesta.addString(identificador);
-                respuesta.addString("❌ Programa no pertenece a la facultad.");
-                respuesta.send(recepcion);
+                envelope.addString("❌ Programa no pertenece a la facultad.");
+                envelope.send(recepcion);
                 System.out.println("❌ Rechazada solicitud de " + programa);
             }
         }
@@ -83,3 +80,4 @@ public class Facultad {
         pool.shutdown();
     }
 }
+

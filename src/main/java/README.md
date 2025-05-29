@@ -78,7 +78,8 @@ Cada proceso se lanza desde un script contenido en la carpeta `chmod +x run/*.sh
 ./run/run_programa.sh <nombrePrograma> <nombreFacultad> <semestre> <salones> <laboratorios> <ipFacultad>
 
 # Ejemplo:
-./run/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "localhost"
+./run/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "172.20.10.4"
+./runWin/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "172.20.10.4"
  ```
 
 # 🔁 Iniciar el servidor de respaldo (backup)
