@@ -1,10 +1,11 @@
 package programas;
 
 import org.zeromq.ZMQ;
-
+import org.zeromq.ZMsg;
 import com.google.gson.Gson;
-
 import modelo.Solicitud;
+
+import java.util.UUID;
 
 public class ProgramaAcademico {
 
@@ -13,14 +14,7 @@ public class ProgramaAcademico {
     public static void main(String[] args) {
         if (args.length != 6) {
             System.err.println("❌ Número incorrecto de argumentos.");
-            System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <nombreFacultad> "
-                    + "<semestre> <salones> <laboratorios> <ipFacultad>");
-            return;
-        }
-
-        if (args.length < 6) {
-            System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <nombreFacultad> "
-                    + "<semestre> <salones> <laboratorios> <ipFacultad>");
+            System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <nombreFacultad> <semestre> <salones> <laboratorios> <ipFacultad>");
             return;
         }
 
@@ -34,7 +28,8 @@ public class ProgramaAcademico {
         Solicitud solicitud = new Solicitud(nombrePrograma, nombreFacultad, semestre, salones, laboratorios);
 
         ZMQ.Context context = ZMQ.context(1);
-        ZMQ.Socket socket = context.socket(ZMQ.REQ);
+        ZMQ.Socket socket = context.socket(ZMQ.DEALER);
+        socket.setIdentity(("PROG-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         socket.connect("tcp://" + ipFacultad + ":" + PUERTO_FACULTAD);
 
         Gson gson = new Gson();
@@ -42,10 +37,21 @@ public class ProgramaAcademico {
         try {
             String json = gson.toJson(solicitud);
             System.out.println("[Programa " + nombrePrograma + "] 📤 Enviando solicitud: " + json);
-            socket.send(json);
 
-            String respuesta = socket.recvStr();
-            System.out.println("[Programa " + nombrePrograma + "] 📥 Respuesta: " + respuesta);
+            // Enviar solicitud como ZMsg
+            ZMsg msg = new ZMsg();
+            msg.addString(json);
+            msg.send(socket);
+
+            // Esperar respuesta
+            ZMsg respuesta = ZMsg.recvMsg(socket);
+            if (respuesta != null) {
+                String contenido = respuesta.popString();
+                System.out.println("[Programa " + nombrePrograma + "] 📥 Respuesta: " + contenido);
+            } else {
+                System.err.println("❌ No se recibió respuesta de la facultad.");
+            }
+
         } catch (Exception e) {
             System.err.println("❌ Error al enviar solicitud: " + e.getMessage());
         } finally {

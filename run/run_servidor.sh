@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 PUERTO=5555
-IP_LOCAL="DEFINIR_IP_LOCAL_MANUALMENTE"
+IP_LOCAL="10.43.102.242" # Cambia esto a la IP local de tu máquina
 
 echo "[run_servidor] IP local: $IP_LOCAL"
 echo "[run_servidor] Escuchando en puerto $PUERTO..."

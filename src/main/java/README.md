@@ -62,10 +62,14 @@ Cada proceso se lanza desde un script contenido en la carpeta `chmod +x run/*.sh
 
 # 🎓 Iniciar una facultad
 ```bash
+#Correr en Linux
+./run/run_facultad.sh <NombreFacultad> <IpServidor>
+#Correr Windows
 ./run/run_facultad.sh <NombreFacultad> <IpServidor>
  
 #Ejemplos: 
 ./run/run_facultad.sh "Ingeniería" "192.168.32.1"
+./run/run_facultad.sh "Ingeniería" "localhost"
 ./run/run_facultad.sh "Ingeniería" "localhost"
  ```
 

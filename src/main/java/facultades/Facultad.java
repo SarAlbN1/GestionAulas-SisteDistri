@@ -5,7 +5,6 @@ import modelo.Solicitud;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
-import org.zeromq.ZFrame;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -41,39 +40,55 @@ public class Facultad {
         envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
 
-        // Registro asincrónico
-        Map<String, String> inscripcion = Map.of("tipo", "inscripcion", "facultad", nombreFacultadInput);
+        // Registro asincrónico en el servidor
+        Map<String, String> inscripcion = Map.of(
+                "tipo", "inscripcion",
+                "facultad", nombreFacultadInput
+        );
         envio.sendMore("");
         envio.send(gson.toJson(inscripcion));
         System.out.println("📤 Enviando solicitud de inscripción para facultad: " + nombreFacultad);
 
+        // Cargar programas válidos
         List<String> programasValidos = FACULTADES_PROGRAMAS.getOrDefault(nombreFacultad, Collections.emptyList());
         ExecutorService pool = Executors.newCachedThreadPool();
 
-        System.out.println("🟢 Facultad '" + nombreFacultad + "' escuchando solicitudes de sus programas...");
+        System.out.println("🟢 Facultad '" + nombreFacultad + "' escuchando solicitudes...");
 
         while (!Thread.currentThread().isInterrupted()) {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
             String identificadorPrograma = mensaje.popString();
-            String solicitudStr = mensaje.popString();
+            String solicitudStr = new String(mensaje.pop().getData(), ZMQ.CHARSET); // ✔️ Esto garantiza que los bytes del mensaje se lean correctamente como UTF-8
+Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);    // ✔️ Aquí sí usas la clase `Solicitud` como siempre
 
-            Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);
+            try {
+                if (solicitudStr.trim().startsWith("{")) {
+                    solicitud = gson.fromJson(solicitudStr, Solicitud.class);
+                } else {
+                    System.err.println("⚠️ Mensaje recibido no es un JSON válido: " + solicitudStr);
+                    continue;
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Error al parsear solicitud: " + e.getMessage());
+                continue;
+            }
+
             if (solicitud == null || solicitud.getPrograma() == null) continue;
 
             String programa = solicitud.getPrograma();
-            System.out.println("📥 Solicitud recibida de programa: '" + programa + "', ID: " + solicitud.getId());
+            System.out.printf("📥 Solicitud recibida de '%s', ID: %s\n", programa, solicitud.getId());
 
             if (programasValidos.contains(programa)) {
-                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, mensaje));
+                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, identificadorPrograma));
             } else {
                 String mensajeError = "ERROR: El programa '" + programa + "' no pertenece a la facultad '" + nombreFacultad + "'.";
                 ZMsg respuesta = new ZMsg();
                 respuesta.addString(identificadorPrograma);
                 respuesta.addString(mensajeError);
                 respuesta.send(recepcion);
-                System.out.println("❌ Rechazada solicitud de " + programa + ": no corresponde a esta facultad.");
+                System.out.printf("❌ Rechazada solicitud de %s: programa no válido para esta facultad.\n", programa);
             }
         }
 
