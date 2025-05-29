@@ -38,6 +38,15 @@ public class Servidor {
                 System.out.println("📨 Identidad ZMQ: " + new String(identidad));
                 System.out.println("📄 Contenido: " + mensaje);
 
+                // 🔍 Si es un health-check (simple string, no JSON)
+                if ("health-check".equalsIgnoreCase(mensaje)) {
+                    System.out.println("💓 HealthChecker conectado.");
+                    socket.send(identidad, ZMQ.SNDMORE);
+                    socket.send("", ZMQ.SNDMORE);
+                    socket.send("✅ Servidor en línea (pong)");
+                    continue;
+                }
+
                 Map<String, Object> datos = gson.fromJson(mensaje, new TypeToken<Map<String, Object>>() {}.getType());
                 String tipo = (String) datos.get("tipo");
 

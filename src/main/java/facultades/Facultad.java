@@ -36,8 +36,6 @@ public class Facultad {
         recepcion.bind("tcp://*:" + PUERTO_RECEPCION);
         System.out.println("📡 Facultad escuchando en puerto " + PUERTO_RECEPCION);
 
-        new Thread(new tolerancia.HealthChecker()).start();
-
         ZMQ.Socket envio = context.socket(SocketType.DEALER);
         envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
