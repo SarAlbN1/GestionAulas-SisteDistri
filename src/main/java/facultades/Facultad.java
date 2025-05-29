@@ -2,7 +2,9 @@ package facultades;
 
 import com.google.gson.Gson;
 import modelo.Solicitud;
-import org.zeromq.*;
+import org.zeromq.SocketType;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMsg;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -17,21 +19,6 @@ public class Facultad {
             "Ingeniería", List.of("Ingeniería Civil", "Ingeniería Electrónica", "Ingeniería de Sistemas", "Ingeniería Mecánica", "Ingeniería Industrial"),
             "Medicina", List.of("Medicina General", "Enfermería", "Odontología", "Farmacia", "Terapia Física")
     );
-
-    private static ZMQ.Socket connectWithRetry(ZMQ.Context context, String ipServidor) {
-        while (true) {
-            try {
-                ZMQ.Socket envio = context.socket(SocketType.DEALER);
-                envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
-                envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
-                System.out.println("🔗 Conectado al servidor en " + ipServidor + ":" + PUERTO_SERVIDOR);
-                return envio;
-            } catch (Exception e) {
-                System.out.println("❌ Error conectando al servidor. Reintentando en 5 segundos...");
-                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
-            }
-        }
-    }
 
     public static void main(String[] args) {
         if (args.length < 2) {
@@ -49,12 +36,16 @@ public class Facultad {
         recepcion.bind("tcp://*:" + PUERTO_RECEPCION);
         System.out.println("📡 Facultad escuchando en puerto " + PUERTO_RECEPCION);
 
-        ZMQ.Socket envio = connectWithRetry(context, ipServidor);
+        ZMQ.Socket envio = context.socket(SocketType.DEALER);
+        envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
+        envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
+        System.out.println("🔗 Conectado al servidor en " + ipServidor + ":" + PUERTO_SERVIDOR);
 
+        // Inscripción
         Map<String, String> inscripcion = Map.of("tipo", "inscripcion", "facultad", nombreFacultad);
         envio.sendMore("");
         envio.send(gson.toJson(inscripcion));
-        System.out.println("📤 Enviando inscripción: " + gson.toJson(inscripcion));
+        System.out.println("📤 Enviando solicitud de inscripción: " + gson.toJson(inscripcion));
 
         List<String> programasValidos = FACULTADES_PROGRAMAS.getOrDefault(nombreFacultad, Collections.emptyList());
         ExecutorService pool = Executors.newCachedThreadPool();
@@ -65,33 +56,46 @@ public class Facultad {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
-            ZMsg envelope = mensaje.duplicate();
+            ZMsg envelope = mensaje.duplicate();  // Envelope original
             String solicitudStr = new String(mensaje.getLast().getData(), ZMQ.CHARSET);
-            System.out.println("📥 Solicitud recibida: " + solicitudStr);
+            System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
+            Solicitud solicitud;
             try {
-                Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);
-                String programa = solicitud.getPrograma();
-                String facultadDestino = solicitud.getFacultad();
-
-                if (!facultadDestino.equalsIgnoreCase(nombreFacultad)) {
-                    envelope.addString("❌ Facultad destino incorrecta.");
-                    envelope.send(recepcion);
-                    continue;
-                }
-
-                if (!programasValidos.contains(programa)) {
-                    envelope.addString("❌ Programa no pertenece a la facultad.");
-                    envelope.send(recepcion);
-                    continue;
-                }
-
-                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
-
+                solicitud = gson.fromJson(solicitudStr, Solicitud.class);
             } catch (Exception e) {
-                envelope.addString("❌ Error procesando solicitud.");
+                envelope.addString("❌ Solicitud malformada: no se pudo interpretar el JSON.");
                 envelope.send(recepcion);
+                System.out.println("❌ Rechazada solicitud por error de formato.");
+                continue;
             }
+
+            String programa = solicitud.getPrograma();
+            String facultadDestino = solicitud.getFacultad();
+
+            System.out.printf("🔍 Validando facultad solicitada '%s' contra esta facultad '%s'%n",
+                    facultadDestino, nombreFacultad);
+
+            // Validar que la facultad destino coincida con la ejecutada
+            if (!facultadDestino.trim().equalsIgnoreCase(nombreFacultad.trim())) {
+                envelope.addString("❌ Solicitud rechazada: la solicitud fue enviada a la facultad '" + facultadDestino +
+                        "', pero esta instancia corresponde a '" + nombreFacultad + "'.");
+                envelope.send(recepcion);
+                System.out.println("❌ Rechazada solicitud: facultad incorrecta → " + facultadDestino);
+                continue;
+            }
+
+            // Validar que el programa pertenezca a la facultad
+            if (!programasValidos.contains(programa)) {
+                envelope.addString("❌ Programa '" + programa + "' no pertenece a la facultad '" + nombreFacultad + "'.");
+                envelope.send(recepcion);
+                System.out.println("❌ Rechazada solicitud: programa no válido.");
+                continue;
+            }
+
+            // Solicitud válida, enviar al servidor
+            System.out.println("✅ Facultad y programa válidos. Enviando al servidor...");
+            pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
         }
 
         envio.close();

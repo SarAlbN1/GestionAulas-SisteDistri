@@ -3,6 +3,7 @@ package tolerancia;
 import org.zeromq.*;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 
 public class HealthChecker {
@@ -50,7 +51,12 @@ public class HealthChecker {
             if (!servidorActivo && !replicaActiva) {
                 try {
                     System.out.println("[HealthChecker] 🚨 Activando Servidor Réplica...");
-                    replicaProcess = Runtime.getRuntime().exec("cmd /c runWin\\resilience\\run_backup.bat " + IP_SERVIDOR + " " + PUERTO_SERVIDOR);
+                    
+                    ProcessBuilder builder = new ProcessBuilder(
+                        "cmd", "/c", "runWin\\resilience\\run_backup.bat", IP_SERVIDOR, String.valueOf(PUERTO_SERVIDOR)
+                    );
+                    builder.directory(new File(System.getProperty("user.dir"))); // Asegura ejecución desde raíz del proyecto
+                    replicaProcess = builder.start();
                     replicaActiva = true;
 
                     BufferedReader reader = new BufferedReader(new InputStreamReader(replicaProcess.getInputStream()));
@@ -74,3 +80,4 @@ public class HealthChecker {
         }
     }
 }
+
