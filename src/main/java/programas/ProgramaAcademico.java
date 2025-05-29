@@ -1,9 +1,10 @@
+// programas/ProgramaAcademico.java
 package programas;
 
-import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
 import com.google.gson.Gson;
 import modelo.Solicitud;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMsg;
 
 import java.util.UUID;
 
@@ -13,7 +14,6 @@ public class ProgramaAcademico {
 
     public static void main(String[] args) {
         if (args.length != 6) {
-            System.err.println("❌ Número incorrecto de argumentos.");
             System.out.println("Uso: java ProgramaAcademico <nombrePrograma> <nombreFacultad> <semestre> <salones> <laboratorios> <ipFacultad>");
             return;
         }
@@ -26,30 +26,25 @@ public class ProgramaAcademico {
         String ipFacultad = args[5];
 
         Solicitud solicitud = new Solicitud(nombrePrograma, nombreFacultad, semestre, salones, laboratorios);
-
+        Gson gson = new Gson();
         ZMQ.Context context = ZMQ.context(1);
         ZMQ.Socket socket = context.socket(ZMQ.DEALER);
         socket.setIdentity(("PROG-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         socket.connect("tcp://" + ipFacultad + ":" + PUERTO_FACULTAD);
 
-        Gson gson = new Gson();
-
         try {
-            String json = gson.toJson(solicitud);
-            System.out.println("[Programa " + nombrePrograma + "] 📤 Enviando solicitud: " + json);
-
-            // Enviar solicitud como ZMsg
             ZMsg msg = new ZMsg();
-            msg.addString(json);
+            msg.addString(""); // Simula encabezado vacio
+            msg.addString(gson.toJson(solicitud));
             msg.send(socket);
+            System.out.println("📤 Enviado JSON: " + gson.toJson(solicitud));
 
-            // Esperar respuesta
             ZMsg respuesta = ZMsg.recvMsg(socket);
             if (respuesta != null) {
-                String contenido = respuesta.popString();
-                System.out.println("[Programa " + nombrePrograma + "] 📥 Respuesta: " + contenido);
+                System.out.println("📥 Respuesta recibida:");
+                respuesta.forEach(part -> System.out.println("🧩 Parte: " + part.toString()));
             } else {
-                System.err.println("❌ No se recibió respuesta de la facultad.");
+                System.err.println("❌ No hubo respuesta de la facultad.");
             }
 
         } catch (Exception e) {

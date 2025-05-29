@@ -2,76 +2,57 @@ package servidor;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import modelo.Solicitud;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
+import org.zeromq.ZContext;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Servidor central. Acepta inscripciones de facultades y solicitudes de asignación.
- * Usa comunicación asíncrona DEALER ↔ ROUTER.
- */
 public class Servidor {
 
     private static final int PUERTO = 5555;
+    private static final Map<String, byte[]> facultades = new HashMap<>();
 
-    // Registro central de facultades inscritas (nombre ↔ identidad ZMQ)
-    private static final Map<String, String> facultades = new HashMap<>();
-
-    public static boolean esFacultadInscrita(String nombreFacultad) {
-        return facultades.containsKey(nombreFacultad);
+    public static boolean esFacultadInscrita(String nombre) {
+        return facultades.containsKey(nombre);
     }
 
     public static void main(String[] args) {
-        ZMQ.Context context = ZMQ.context(1);
-        ZMQ.Socket socket = context.socket(ZMQ.ROUTER);
-        socket.bind("tcp://0.0.0.0:" + PUERTO);
+        try (ZContext context = new ZContext()) {
+            ZMQ.Socket socket = context.createSocket(SocketType.ROUTER);
+            socket.bind("tcp://0.0.0.0:" + PUERTO);
 
-        AsignadorAulas asignador = new AsignadorAulas();
-        Persistencia persistencia = new Persistencia();
-        Gson gson = new Gson();
+            AsignadorAulas asignador = new AsignadorAulas();
+            Persistencia persistencia = new Persistencia();
+            Gson gson = new Gson();
 
-        System.out.println("[Servidor] 🟢 Escuchando en el puerto " + PUERTO);
+            System.out.println("[Servidor] 🟢 Escuchando en el puerto " + PUERTO);
 
-        while (true) {
-            try {
-                byte[] identidad = socket.recv(); // Identificador de cliente
-                socket.recv(); // Frame vacío (por protocolo ROUTER)
-                String mensaje = socket.recvStr();
+            while (!Thread.currentThread().isInterrupted()) {
+                byte[] identidad = socket.recv(0);
+                socket.recv(0); // Frame vacío
+                String mensaje = socket.recvStr(0);
 
-                System.out.println("\n[Servidor] 🧾 Identidad: " + new String(identidad));
-                System.out.println("[Servidor] 📩 Contenido recibido: " + mensaje);
+                System.out.println("🔻 [Servidor] 🔻");
+                System.out.println("📨 Identidad ZMQ: " + new String(identidad));
+                System.out.println("📄 Contenido: " + mensaje);
 
-                // Verificar si es inscripción o solicitud
                 Map<String, Object> datos = gson.fromJson(mensaje, new TypeToken<Map<String, Object>>() {}.getType());
                 String tipo = (String) datos.get("tipo");
 
-                // 🔹 INSCRIPCIÓN
                 if ("inscripcion".equals(tipo)) {
                     String facultad = (String) datos.get("facultad");
-                    facultades.put(facultad, new String(identidad));
+                    facultades.put(facultad, identidad);
 
                     socket.send(identidad, ZMQ.SNDMORE);
                     socket.send("", ZMQ.SNDMORE);
-                    socket.send("Inscripción exitosa");
-
-                    System.out.println("✅ Facultad registrada: " + facultad);
+                    socket.send("✅ Inscripción exitosa");
+                    System.out.println("✅ Facultad '" + facultad + "' inscrita.");
                     continue;
                 }
 
-                // 🔸 SOLICITUD DE ASIGNACIÓN
-                new Thread(new ManejadorSolicitudesServidor(
-                        identidad,
-                        mensaje,
-                        socket,
-                        asignador,
-                        persistencia
-                )).start();
-
-            } catch (Exception e) {
-                System.err.println("❌ Error procesando mensaje en Servidor: " + e.getMessage());
-                e.printStackTrace();
+                new Thread(new ManejadorSolicitudesServidor(identidad, mensaje, socket, asignador, persistencia)).start();
             }
         }
     }

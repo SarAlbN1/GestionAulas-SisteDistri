@@ -1,3 +1,4 @@
+// facultades/Facultad.java
 package facultades;
 
 import com.google.gson.Gson;
@@ -26,8 +27,7 @@ public class Facultad {
             return;
         }
 
-        String nombreFacultadInput = args[0];
-        String nombreFacultad = nombreFacultadInput.replace("Facultad de ", "").trim();
+        String nombreFacultad = args[0];
         String ipServidor = args[1];
 
         Gson gson = new Gson();
@@ -35,60 +35,46 @@ public class Facultad {
 
         ZMQ.Socket recepcion = context.socket(SocketType.ROUTER);
         recepcion.bind("tcp://*:" + PUERTO_RECEPCION);
+        System.out.println("📡 Facultad escuchando en puerto " + PUERTO_RECEPCION);
 
         ZMQ.Socket envio = context.socket(SocketType.DEALER);
         envio.setIdentity(("FAC-" + UUID.randomUUID()).getBytes(ZMQ.CHARSET));
         envio.connect("tcp://" + ipServidor + ":" + PUERTO_SERVIDOR);
+        System.out.println("🔗 Conectado al servidor en " + ipServidor + ":" + PUERTO_SERVIDOR);
 
-        // Registro asincrónico en el servidor
-        Map<String, String> inscripcion = Map.of(
-                "tipo", "inscripcion",
-                "facultad", nombreFacultadInput
-        );
+        // Inscripción
+        Map<String, String> inscripcion = Map.of("tipo", "inscripcion", "facultad", nombreFacultad);
         envio.sendMore("");
         envio.send(gson.toJson(inscripcion));
-        System.out.println("📤 Enviando solicitud de inscripción para facultad: " + nombreFacultad);
+        System.out.println("📤 Enviando solicitud de inscripción: " + gson.toJson(inscripcion));
 
-        // Cargar programas válidos
         List<String> programasValidos = FACULTADES_PROGRAMAS.getOrDefault(nombreFacultad, Collections.emptyList());
         ExecutorService pool = Executors.newCachedThreadPool();
 
-        System.out.println("🟢 Facultad '" + nombreFacultad + "' escuchando solicitudes...");
+        System.out.println("🟢 Facultad '" + nombreFacultad + "' esperando solicitudes...");
 
         while (!Thread.currentThread().isInterrupted()) {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
-            String identificadorPrograma = mensaje.popString();
-            String solicitudStr = new String(mensaje.pop().getData(), ZMQ.CHARSET); // ✔️ Esto garantiza que los bytes del mensaje se lean correctamente como UTF-8
-Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);    // ✔️ Aquí sí usas la clase `Solicitud` como siempre
+            String identificador = mensaje.popString();
+            String solicitudStr = mensaje.popString();
 
-            try {
-                if (solicitudStr.trim().startsWith("{")) {
-                    solicitud = gson.fromJson(solicitudStr, Solicitud.class);
-                } else {
-                    System.err.println("⚠️ Mensaje recibido no es un JSON válido: " + solicitudStr);
-                    continue;
-                }
-            } catch (Exception e) {
-                System.err.println("❌ Error al parsear solicitud: " + e.getMessage());
-                continue;
-            }
+            System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
-            if (solicitud == null || solicitud.getPrograma() == null) continue;
+            Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);
+            if (solicitud == null) continue;
 
             String programa = solicitud.getPrograma();
-            System.out.printf("📥 Solicitud recibida de '%s', ID: %s\n", programa, solicitud.getId());
 
             if (programasValidos.contains(programa)) {
-                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, identificadorPrograma));
+                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, identificador));
             } else {
-                String mensajeError = "ERROR: El programa '" + programa + "' no pertenece a la facultad '" + nombreFacultad + "'.";
                 ZMsg respuesta = new ZMsg();
-                respuesta.addString(identificadorPrograma);
-                respuesta.addString(mensajeError);
+                respuesta.addString(identificador);
+                respuesta.addString("❌ Programa no pertenece a la facultad.");
                 respuesta.send(recepcion);
-                System.out.printf("❌ Rechazada solicitud de %s: programa no válido para esta facultad.\n", programa);
+                System.out.println("❌ Rechazada solicitud de " + programa);
             }
         }
 
