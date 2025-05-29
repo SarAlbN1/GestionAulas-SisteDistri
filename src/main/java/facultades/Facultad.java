@@ -57,8 +57,9 @@ public class Facultad {
             if (mensaje == null || mensaje.size() < 2) continue;
 
             ZMsg envelope = mensaje.duplicate(); // copia completa del envelope
-            String solicitudStr = mensaje.popString(); // cuerpo del mensaje
 
+            // ✅ Corrección clave: decodificar el último frame correctamente como UTF-8
+            String solicitudStr = new String(mensaje.getLast().getData(), ZMQ.CHARSET);
             System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
             Solicitud solicitud = gson.fromJson(solicitudStr, Solicitud.class);
@@ -80,4 +81,3 @@ public class Facultad {
         pool.shutdown();
     }
 }
-

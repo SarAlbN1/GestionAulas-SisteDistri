@@ -14,13 +14,13 @@ public class ManejadorSolicitudesFacultad implements Runnable {
     private final Solicitud solicitud;
     private final ZMQ.Socket socketEnvio;       // DEALER (al servidor)
     private final ZMQ.Socket socketRecepcion;   // ROUTER (respuesta al programa)
-    private final String identificadorPrograma; // Identificador del programa solicitante
+    private final ZMsg envelope;                // Envelope completo del programa
 
-    public ManejadorSolicitudesFacultad(Solicitud solicitud, ZMQ.Socket socketEnvio, ZMQ.Socket socketRecepcion, String identificadorPrograma) {
+    public ManejadorSolicitudesFacultad(Solicitud solicitud, ZMQ.Socket socketEnvio, ZMQ.Socket socketRecepcion, ZMsg envelope) {
         this.solicitud = solicitud;
         this.socketEnvio = socketEnvio;
         this.socketRecepcion = socketRecepcion;
-        this.identificadorPrograma = identificadorPrograma;
+        this.envelope = envelope;
     }
 
     @Override
@@ -37,7 +37,7 @@ public class ManejadorSolicitudesFacultad implements Runnable {
                     solicitud.getId(), solicitud.getPrograma());
 
             // Esperar respuesta del servidor
-            String frameVacio = socketEnvio.recvStr(); // descartamos
+            String frameVacio = socketEnvio.recvStr(); // descartar frame vacío
             String respuestaServidor = socketEnvio.recvStr();
 
             if (respuestaServidor == null || respuestaServidor.trim().isEmpty()) {
@@ -49,9 +49,8 @@ public class ManejadorSolicitudesFacultad implements Runnable {
             System.out.printf("📥 [Facultad] Respuesta del servidor para ID %s: %s\n",
                     solicitud.getId(), respuestaServidor);
 
-            // Enviar respuesta al programa académico
-            ZMsg respuesta = new ZMsg();
-            respuesta.addString(identificadorPrograma);
+            // Responder al programa académico
+            ZMsg respuesta = envelope.duplicate();
             respuesta.addString(respuestaServidor);
             respuesta.send(socketRecepcion);
 
@@ -65,8 +64,7 @@ public class ManejadorSolicitudesFacultad implements Runnable {
 
     private void responderAPrograma(String mensaje) {
         try {
-            ZMsg respuestaError = new ZMsg();
-            respuestaError.addString(identificadorPrograma);
+            ZMsg respuestaError = envelope.duplicate();
             respuestaError.addString(mensaje);
             respuestaError.send(socketRecepcion);
         } catch (Exception e) {

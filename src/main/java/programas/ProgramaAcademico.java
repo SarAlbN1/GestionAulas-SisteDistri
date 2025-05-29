@@ -1,10 +1,8 @@
-// programas/ProgramaAcademico.java
 package programas;
 
 import com.google.gson.Gson;
 import modelo.Solicitud;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
 
 import java.util.UUID;
 
@@ -33,16 +31,13 @@ public class ProgramaAcademico {
         socket.connect("tcp://" + ipFacultad + ":" + PUERTO_FACULTAD);
 
         try {
-            ZMsg msg = new ZMsg();
-            msg.addString(""); // Simula encabezado vacio
-            msg.addString(gson.toJson(solicitud));
-            msg.send(socket);
-            System.out.println("📤 Enviado JSON: " + gson.toJson(solicitud));
+            String json = gson.toJson(solicitud);
+            socket.send(json);
+            System.out.println("📤 Enviado JSON: " + json);
 
-            ZMsg respuesta = ZMsg.recvMsg(socket);
+            String respuesta = socket.recvStr();
             if (respuesta != null) {
-                System.out.println("📥 Respuesta recibida:");
-                respuesta.forEach(part -> System.out.println("🧩 Parte: " + part.toString()));
+                System.out.println("📥 Respuesta de la facultad: " + respuesta);
             } else {
                 System.err.println("❌ No hubo respuesta de la facultad.");
             }
@@ -55,3 +50,4 @@ public class ProgramaAcademico {
         }
     }
 }
+
