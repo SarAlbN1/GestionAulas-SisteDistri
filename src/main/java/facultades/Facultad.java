@@ -56,9 +56,7 @@ public class Facultad {
             ZMsg mensaje = ZMsg.recvMsg(recepcion);
             if (mensaje == null || mensaje.size() < 2) continue;
 
-            ZMsg envelope = mensaje.duplicate(); // copia completa del envelope
-
-            // ✅ Corrección clave: decodificar el último frame correctamente como UTF-8
+            ZMsg envelope = mensaje.duplicate();
             String solicitudStr = new String(mensaje.getLast().getData(), ZMQ.CHARSET);
             System.out.println("📥 Mensaje recibido de programa: " + solicitudStr);
 
@@ -66,14 +64,24 @@ public class Facultad {
             if (solicitud == null) continue;
 
             String programa = solicitud.getPrograma();
+            String facultadDestino = solicitud.getFacultad();
 
-            if (programasValidos.contains(programa)) {
-                pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
-            } else {
-                envelope.addString("❌ Programa no pertenece a la facultad.");
+            // Validar que la facultad destino coincida con esta facultad
+            if (!facultadDestino.equalsIgnoreCase(nombreFacultad)) {
+                envelope.addString("❌ Solicitud rechazada: debe enviarse a la facultad '" + facultadDestino + "', no a '" + nombreFacultad + "'.");
                 envelope.send(recepcion);
-                System.out.println("❌ Rechazada solicitud de " + programa);
+                System.out.println("❌ Rechazada solicitud: facultad incorrecta → " + facultadDestino);
+                continue;
             }
+
+            if (!programasValidos.contains(programa)) {
+                envelope.addString("❌ Programa '" + programa + "' no pertenece a la facultad '" + nombreFacultad + "'.");
+                envelope.send(recepcion);
+                System.out.println("❌ Rechazada solicitud: programa no válido.");
+                continue;
+            }
+
+            pool.submit(new ManejadorSolicitudesFacultad(solicitud, envio, recepcion, envelope));
         }
 
         envio.close();

@@ -37,7 +37,11 @@ public class ProgramaAcademico {
 
             String respuesta = socket.recvStr();
             if (respuesta != null) {
-                System.out.println("📥 Respuesta de la facultad: " + respuesta);
+                if (respuesta.startsWith("❌")) {
+                    System.err.println("❌ Solicitud rechazada por la facultad: " + respuesta);
+                } else {
+                    System.out.println("📥 Respuesta de la facultad: " + respuesta);
+                }
             } else {
                 System.err.println("❌ No hubo respuesta de la facultad.");
             }
@@ -50,4 +54,3 @@ public class ProgramaAcademico {
         }
     }
 }
-
