@@ -50,7 +50,7 @@ public class HealthChecker {
             if (!servidorActivo && !replicaActiva) {
                 try {
                     System.out.println("[HealthChecker] 🚨 Activando Servidor Réplica...");
-                    replicaProcess = Runtime.getRuntime().exec("./runWin/resilience/run_backup.sh " + IP_SERVIDOR + " " + PUERTO_SERVIDOR);
+                    replicaProcess = Runtime.getRuntime().exec("cmd /c runWin\\resilience\\run_backup.bat " + IP_SERVIDOR + " " + PUERTO_SERVIDOR);
                     replicaActiva = true;
 
                     BufferedReader reader = new BufferedReader(new InputStreamReader(replicaProcess.getInputStream()));
