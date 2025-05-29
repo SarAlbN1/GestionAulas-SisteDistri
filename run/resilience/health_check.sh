@@ -3,22 +3,22 @@ set -euo pipefail
 
 # Ejecuta el HealthChecker que supervisa al Servidor Central
 # Uso: ./health_check.sh <ipServidor> [puerto]
-IP="${1:-localhost}"
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Uso: $0 <ipServidor> [puerto]"
+  exit 1
+fi
+
+IP="$1"
 PUERTO="${2:-5555}"
-IP_LOCAL="DEFINIR_IP_LOCAL_MANUALMENTE"
 
 cd "$(dirname "$0")/.."
 
-echo "[health_check] IP local: $IP_LOCAL"
-echo "[health_check] Verificando conectividad a $IP:$PUERTO..."
-ping -c 1 "$IP" > /dev/null || {
-  echo "❌ No se puede contactar al servidor en $IP"
-  exit 1
-}
+echo "[health_check] Ejecutando HealthChecker contra $IP:$PUERTO..."
 
-mvn compile
+mvn clean compile
 
-echo "[health_check] Iniciando HealthChecker contra $IP:$PUERTO..."
 mvn exec:java \
   -Dexec.mainClass="tolerancia.HealthChecker" \
-  -Dexec.args="$IP $PUERTO"
+  -Dexec.args="$IP $PUERTO" \
+  -Dexec.cleanupDaemonThreads=false

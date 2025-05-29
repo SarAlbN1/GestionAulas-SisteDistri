@@ -12,16 +12,16 @@ GestionAulas-SisteDistri/
 │   ├── modelo/             # Clases de dominio (Solicitud, Aula, Constantes)
 │   ├── programas/          # Programas académicos (clientes solicitantes)
 │   ├── facultades/         # Facultades (intermediarios con validación)
-│   ├── servidor/           # Servidor central de asignación
-│   └── tolerancia/         # Backup y verificador de salud (extensión)
+│   ├── servidor/           # Servidor central (ROUTER)
+│   └── tolerancia/         # HealthChecker (monitoreo y backup automático)
 ├── data/
 │   ├── logs/               # Log general del sistema
 │   └── solicitudes/
 │       ├── asignaciones/   # Asignaciones exitosas por semestre
-│       └── rechazos/       # Rechazos de solicitudes por semestre
-├── run/                    # Scripts de ejecución
-├── lib/                    # Dependencias externas (.jar)
-├── pom.xml                 # Configuración de Maven
+│       └── rechazos/       # Rechazos por falta de recursos
+├── run/                    # Scripts ejecutables multiplataforma
+├── lib/                    # Librerías externas (.jar)
+├── pom.xml                 # Configuración del proyecto Maven
 └── README.md               # Documentación del sistema
 ```
 
@@ -29,109 +29,133 @@ GestionAulas-SisteDistri/
 
 ## 📦 Dependencias
 
-Este proyecto utiliza:
+Este proyecto usa las siguientes dependencias gestionadas por Maven:
 
-- **Gson 2.10.1** – Serialización JSON (solicitudes y respuestas).
-- **JeroMQ 0.5.2** – Comunicación entre procesos usando ZeroMQ puro en Java.
+- **Gson 2.10.1** – Serialización JSON.
+- **JeroMQ 0.5.2** – Implementación pura de ZeroMQ en Java.
 
-Ambas están definidas como dependencias en `pom.xml`.
+Ambas están definidas en `pom.xml` y se descargan automáticamente.
 
 ---
 
 ## 🛠️ Compilación
 
-Para compilar el proyecto con Maven, ubícate en la raíz del proyecto y ejecuta:
+La compilación es **idéntica en Linux, macOS y Windows (usando Git Bash)**.
 
 ```bash
 mvn clean compile
 ```
 
+Asegúrate de tener:
+- Java 17 o superior
+- Maven instalado y en tu PATH
+- Git Bash si estás en Windows
+
 ---
 
 ## 🚀 Ejecución por Módulo
 
-Cada proceso se lanza desde un script contenido en la carpeta `chmod +x run/*.sh`:
+Cada módulo se lanza con los scripts dentro de `run/`, los cuales funcionan en **todas las plataformas** con soporte Bash.
 
+---
 
-# 🟢 Iniciar el servidor central (modo asíncrono - ROUTER)
+### 🟢 1. Iniciar el Servidor Central
+
 ```bash
-
 ./run/run_servidor.sh
- ```
+```
 
+Esto inicia el servidor principal (modo ROUTER) en el puerto `5555`.
 
-# 🎓 Iniciar una facultad
+---
+
+### ❤️ 2. Iniciar el HealthChecker
+
 ```bash
-#Correr en Linux
-./run/run_facultad.sh <NombreFacultad> <IpServidor>
-#Correr Windows
-./run/run_facultad.sh <NombreFacultad> <IpServidor>
- 
-#Ejemplos: 
-./run/run_facultad.sh "Ingeniería" "192.168.32.1"
-./run/run_facultad.sh "Ingeniería" "localhost"
-./run/run_facultad.sh "Ingeniería" "localhost"
- ```
-
-# 🧑‍🎓 Iniciar un programa académico
-```bash
-./run/run_programa.sh <nombrePrograma> <nombreFacultad> <semestre> <salones> <laboratorios> <ipFacultad>
+./run/health_check.sh <ipServidorPrincipal> [puerto]
 
 # Ejemplo:
-./run/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "172.20.10.4"
-./runWin/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "172.20.10.4"
- ```
-
-# 🔁 Iniciar el servidor de respaldo (backup)
-```bash
-./run/run_backup.sh
- ```
-
-# ❤️ Iniciar el verificador de salud
-```bash
-./run/health_check.sh
+./run/health_check.sh 192.168.1.4 5555
 ```
 
-> 💡 Asegúrate de que los puertos estén abiertos entre máquinas y se mantenga la coherencia en los nombres de facultades y programas.
+Este componente:
+- Monitorea el servidor principal.
+- Si detecta fallo, **lanza automáticamente el servidor en modo backup**.
+- Notifica a las facultades para que redirijan sus conexiones.
+
+> ❗ No necesitas ejecutar `run_backup.sh` manualmente. El HealthChecker lo hace.
 
 ---
 
-## 📁 Carpetas de Datos
+### 🎓 3. Iniciar 2 Facultades Distintas
 
-| Carpeta                         | Contenido generado automáticamente                    |
-|---------------------------------|--------------------------------------------------------|
-| `data/solicitudes/asignaciones/`| Asignaciones exitosas, organizadas por semestre       |
-| `data/solicitudes/rechazos/`    | Solicitudes rechazadas por falta de recursos          |
-| `data/logs/log_general.txt`     | Log central con trazabilidad y auditoría del sistema  |
+Cada facultad necesita:
+- Su nombre (ej. Ingeniería, Medicina)
+- IP del servidor principal
+- IP del servidor backup (donde está el HealthChecker)
 
-Cada línea del log incluye fecha, ID de solicitud, estado y contenido en JSON.
+```bash
+# Facultad de Ingeniería
+./run/run_facultad.sh "Ingeniería" "192.168.1.4" "192.168.1.5"
+
+# Facultad de Medicina
+./run/run_facultad.sh "Medicina" "192.168.1.4" "192.168.1.5"
+```
+
+Cada una escucha solicitudes en el puerto `6000`.
 
 ---
 
-## 💻 Configuración para VS Code
+### 🧑‍🎓 4. Iniciar 2 Programas Académicos para Facultades Diferentes
 
-Crea o edita el archivo `.vscode/settings.json` con lo siguiente:
+Cada programa requiere:
+- Nombre del programa
+- Nombre de la facultad destino
+- Semestre, número de salones y laboratorios
+- IP donde se ejecuta la facultad correspondiente
 
-```json
-{
-  "java.project.sourcePaths": ["src"],
-  "java.project.referencedLibraries": [
-    "lib/**/*.jar"
-  ]
-}
+```bash
+# Programa 1 → Ingeniería
+./run/run_programa.sh "Ingeniería de Sistemas" "Ingeniería" 4 2 1 "192.168.1.10"
+
+# Programa 2 → Medicina
+./run/run_programa.sh "Medicina General" "Medicina" 2 1 1 "192.168.1.11"
 ```
 
-Esto asegura que el editor reconozca correctamente la estructura y dependencias.
+---
+
+## 📁 Datos y Trazabilidad
+
+| Carpeta                          | Contenido generado automáticamente                    |
+|----------------------------------|--------------------------------------------------------|
+| `data/solicitudes/asignaciones/` | JSON con asignaciones exitosas por semestre           |
+| `data/solicitudes/rechazos/`     | JSON de rechazos por falta de recursos                |
+| `data/logs/log_general.txt`      | Registro general con fecha, estado y contenido JSON   |
 
 ---
 
 ## 🌐 Arquitectura del Sistema
 
-- **Patrón**: Comunicación distribuida DEALER ↔ ROUTER con ZeroMQ.
-- **Facultades**: Se inscriben en el servidor y validan programas.
-- **Programas académicos**: Generan solicitudes que atraviesan la facultad.
-- **Servidor**: Centraliza la asignación y registra la trazabilidad.
-- **Tolerancia a fallos (extensión)**: Incluye un servidor réplica y verificador de estado.
+```plaintext
+[ProgramaAcadémico] →→ [Facultad] →→ [Servidor Principal]
+                                ↘→ [Servidor Backup] (si falla el principal)
+                      ↖⎯⎯⎯⎯⎯⎯⎯ [HealthChecker] ⎯⎯⎯→ notifica REDIRIGIR / VOLVER
+```
+
+- Comunicación **asincrónica** con ZeroMQ: DEALER ↔ ROUTER.
+- Cada Facultad escucha en puerto 6000.
+- Servidor Central escucha en 5555.
+- HealthChecker notifica por PUB en 7000.
+- El Servidor Backup se inicia automáticamente, reutilizando la clase `Servidor`.
+
+---
+
+## 🧠 Recomendaciones Finales
+
+- Verifica que todas las IPs sean accesibles en red local.
+- Evita repetir nombres de facultades o programas no registrados.
+- Usa `Ctrl+C` para detener cada proceso manualmente si no usas supervisor de procesos.
+- Los scripts son ejecutables: `chmod +x run/*.sh` (solo una vez en Unix).
 
 ---
 

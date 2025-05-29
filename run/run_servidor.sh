@@ -6,10 +6,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 PUERTO=5555
-IP_LOCAL="10.43.102.242" # Cambia esto a la IP local de tu máquina
 
-echo "[run_servidor] IP local: $IP_LOCAL"
-echo "[run_servidor] Escuchando en puerto $PUERTO..."
+echo "[run_servidor] Iniciando servidor central en puerto $PUERTO..."
 
 mvn clean compile
 

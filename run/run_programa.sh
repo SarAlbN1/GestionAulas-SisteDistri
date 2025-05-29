@@ -17,15 +17,8 @@ SEMESTRE="$3"
 SALONES="$4"
 LABS="$5"
 IP_FACULTAD="$6"
-PUERTO=6000
-IP_LOCAL="DEFINIR_IP_LOCAL_MANUALMENTE"
 
-echo "[run_programa] IP local: $IP_LOCAL"
-echo "[run_programa] Conectando a facultad $FACULTAD en $IP_FACULTAD:$PUERTO..."
-ping -c 1 "$IP_FACULTAD" > /dev/null || {
-  echo "❌ No se puede contactar a la facultad en $IP_FACULTAD"
-  exit 1
-}
+echo "[run_programa] Ejecutando Programa '$PROGRAMA' con facultad '$FACULTAD' en $IP_FACULTAD..."
 
 mvn exec:java \
   -Dexec.mainClass="programas.ProgramaAcademico" \

@@ -17,6 +17,8 @@ public class Servidor {
     }
 
     public static void main(String[] args) {
+        String modo = (args.length > 0 && args[0].equalsIgnoreCase("backup")) ? "BACKUP" : "PRINCIPAL";
+
         try (ZContext context = new ZContext()) {
             ZMQ.Socket socket = context.createSocket(SocketType.ROUTER);
             socket.bind("tcp://0.0.0.0:" + PUERTO);
@@ -25,7 +27,7 @@ public class Servidor {
             Persistencia persistencia = new Persistencia();
             Gson gson = new Gson();
 
-            System.out.println("[Servidor] 🟢 Escuchando en el puerto " + PUERTO);
+            System.out.println("[Servidor] 🟢 MODO " + modo + " — escuchando en puerto " + PUERTO);
 
             while (!Thread.currentThread().isInterrupted()) {
                 byte[] identidad = socket.recv(0);
