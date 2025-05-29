@@ -94,6 +94,11 @@ Cada facultad necesita:
 - IP del servidor principal
 - IP del servidor backup (donde está el HealthChecker)
 
+
+
+
+
+
 ```bash
 # Facultad de Ingeniería
 ./run/run_facultad.sh "Ingeniería" "192.168.1.4" "192.168.1.5"
