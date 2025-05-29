@@ -1,10 +1,8 @@
 package tolerancia;
 
 import org.zeromq.*;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.util.*;
 
 public class HealthChecker {
 
@@ -21,7 +19,7 @@ public class HealthChecker {
         Process replicaProcess = null;
         boolean replicaActiva = false;
 
-        System.out.println("[HealthChecker] 🔍 Iniciando monitoreo a " + IP_SERVIDOR + ":" + PUERTO_SERVIDOR);
+        System.out.println("[HealthChecker] 🔍 Monitoreando servidor en " + IP_SERVIDOR + ":" + PUERTO_SERVIDOR);
 
         while (true) {
             boolean servidorActivo = false;
@@ -39,23 +37,29 @@ public class HealthChecker {
 
                 if (poller.poll(INTERVALO_MS) > 0) {
                     String respuesta = socket.recvStr();
-                    System.out.println("[HealthChecker] ✅ Respuesta del servidor principal: " + respuesta);
+                    System.out.println("[HealthChecker] ✅ Respuesta recibida: " + respuesta);
                     servidorActivo = true;
                 } else {
-                    System.out.println("[HealthChecker] ❌ Sin respuesta del servidor principal");
+                    System.out.println("[HealthChecker] ❌ Sin respuesta del servidor principal.");
                 }
+
             } catch (Exception e) {
-                System.out.println("[HealthChecker] ⚠️ Error al contactar el servidor: " + e.getMessage());
+                System.out.println("[HealthChecker] ⚠️ Error de conexión: " + e.getMessage());
             }
 
             if (!servidorActivo && !replicaActiva) {
                 try {
-                    System.out.println("[HealthChecker] 🚨 Activando Servidor Réplica...");
-                    
-                    ProcessBuilder builder = new ProcessBuilder(
-                        "cmd", "/c", "runWin\\resilience\\run_backup.bat", IP_SERVIDOR, String.valueOf(PUERTO_SERVIDOR)
+                    System.out.println("[HealthChecker] 🚨 Iniciando servidor de respaldo local...");
+
+                    // Este comando ejecuta la clase `servidor.Servidor` desde Maven (requiere mvn en PATH)
+                    List<String> comando = Arrays.asList(
+                        "mvn", "exec:java", "-Dexec.mainClass=servidor.Servidor"
                     );
-                    builder.directory(new File(System.getProperty("user.dir"))); // Asegura ejecución desde raíz del proyecto
+
+                    ProcessBuilder builder = new ProcessBuilder(comando);
+                    builder.redirectErrorStream(true);
+                    builder.directory(new File(System.getProperty("user.dir")));
+
                     replicaProcess = builder.start();
                     replicaActiva = true;
 
@@ -63,12 +67,12 @@ public class HealthChecker {
                     new Thread(() -> reader.lines().forEach(line -> System.out.println("[ServidorReplica] " + line))).start();
 
                 } catch (Exception e) {
-                    System.out.println("[HealthChecker] ❌ Error al iniciar réplica: " + e.getMessage());
+                    System.out.println("[HealthChecker] ❌ Error al iniciar réplica local: " + e.getMessage());
                 }
             }
 
             if (servidorActivo && replicaActiva) {
-                System.out.println("[HealthChecker] 🟢 Servidor principal activo. Deteniendo réplica...");
+                System.out.println("[HealthChecker] 🟢 Servidor principal volvió. Terminando réplica.");
                 if (replicaProcess != null && replicaProcess.isAlive()) {
                     replicaProcess.destroy();
                     System.out.println("[HealthChecker] 🛑 Réplica detenida.");
@@ -80,4 +84,3 @@ public class HealthChecker {
         }
     }
 }
-
