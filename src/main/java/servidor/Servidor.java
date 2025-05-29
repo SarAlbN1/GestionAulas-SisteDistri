@@ -2,9 +2,7 @@ package servidor;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.zeromq.SocketType;
-import org.zeromq.ZMQ;
-import org.zeromq.ZContext;
+import org.zeromq.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,9 +36,7 @@ public class Servidor {
                 System.out.println("📨 Identidad ZMQ: " + new String(identidad));
                 System.out.println("📄 Contenido: " + mensaje);
 
-                // 🔍 Si es un health-check (simple string, no JSON)
                 if ("health-check".equalsIgnoreCase(mensaje)) {
-                    System.out.println("💓 HealthChecker conectado.");
                     socket.send(identidad, ZMQ.SNDMORE);
                     socket.send("", ZMQ.SNDMORE);
                     socket.send("✅ Servidor en línea (pong)");

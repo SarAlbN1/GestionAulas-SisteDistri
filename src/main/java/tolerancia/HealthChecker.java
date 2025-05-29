@@ -2,6 +2,9 @@ package tolerancia;
 
 import org.zeromq.*;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 public class HealthChecker {
 
     public static void main(String[] args) throws InterruptedException {
@@ -14,9 +17,14 @@ public class HealthChecker {
         final int PUERTO_SERVIDOR = Integer.parseInt(args[1]);
         final int INTERVALO_MS = 10000;
 
-        System.out.println("[HealthChecker][async] Iniciando monitoreo al servidor en " + IP_SERVIDOR + ":" + PUERTO_SERVIDOR + "...");
+        Process replicaProcess = null;
+        boolean replicaActiva = false;
+
+        System.out.println("[HealthChecker] 🔍 Iniciando monitoreo a " + IP_SERVIDOR + ":" + PUERTO_SERVIDOR);
 
         while (true) {
+            boolean servidorActivo = false;
+
             try (ZContext context = new ZContext()) {
                 ZMQ.Socket socket = context.createSocket(SocketType.DEALER);
                 socket.setIdentity("HEALTH".getBytes(ZMQ.CHARSET));
@@ -30,15 +38,36 @@ public class HealthChecker {
 
                 if (poller.poll(INTERVALO_MS) > 0) {
                     String respuesta = socket.recvStr();
-                    System.out.println("[HealthChecker] ✅ Respuesta recibida: " + respuesta);
+                    System.out.println("[HealthChecker] ✅ Respuesta del servidor principal: " + respuesta);
+                    servidorActivo = true;
                 } else {
-                    System.out.println("[HealthChecker] ❌ Sin respuesta. Activando réplica...");
-                    Runtime.getRuntime().exec("java tolerancia.ServidorReplica");
-                    break;
+                    System.out.println("[HealthChecker] ❌ Sin respuesta del servidor principal");
                 }
-
             } catch (Exception e) {
-                System.out.println("[HealthChecker] ⚠️ Error: " + e.getMessage());
+                System.out.println("[HealthChecker] ⚠️ Error al contactar el servidor: " + e.getMessage());
+            }
+
+            if (!servidorActivo && !replicaActiva) {
+                try {
+                    System.out.println("[HealthChecker] 🚨 Activando Servidor Réplica...");
+                    replicaProcess = Runtime.getRuntime().exec("./runWin/resilience/run_backup.sh " + IP_SERVIDOR + " " + PUERTO_SERVIDOR);
+                    replicaActiva = true;
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(replicaProcess.getInputStream()));
+                    new Thread(() -> reader.lines().forEach(line -> System.out.println("[ServidorReplica] " + line))).start();
+
+                } catch (Exception e) {
+                    System.out.println("[HealthChecker] ❌ Error al iniciar réplica: " + e.getMessage());
+                }
+            }
+
+            if (servidorActivo && replicaActiva) {
+                System.out.println("[HealthChecker] 🟢 Servidor principal activo. Deteniendo réplica...");
+                if (replicaProcess != null && replicaProcess.isAlive()) {
+                    replicaProcess.destroy();
+                    System.out.println("[HealthChecker] 🛑 Réplica detenida.");
+                }
+                replicaActiva = false;
             }
 
             Thread.sleep(INTERVALO_MS);

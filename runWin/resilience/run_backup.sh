@@ -7,7 +7,7 @@ IP="${1:-localhost}"
 PUERTO="${2:-5555}"
 IP_LOCAL="DEFINIR_IP_LOCAL_MANUALMENTE"
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 echo "[run_backup] IP local: $IP_LOCAL"
 echo "[run_backup] Verificando conectividad a $IP:$PUERTO..."
